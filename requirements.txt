@@ -1,3 +1,34 @@
+backports.ssl-match-hostname==3.4.0.2
+certifi==2015.4.28
+decorator==3.4.2
+funcsigs==0.4
+functools32==3.2.3.post2
+gnureadline==6.3.3
+ipython==3.2.0
+Jinja2==2.7.3
+jsonschema==2.5.1
+-e git+https://github.com/Lasagne/Lasagne.git@9d4408f1b9dddcc102dc4a56869ee627b5b20832#egg=Lasagne-master
+MarkupSafe==0.23
+matplotlib==1.4.3
+mock==1.1.2
+networkx==1.9.1
+nose==1.3.7
 numpy==1.9.2
+pandas==0.16.2
+pbr==1.3.0
+Pillow==2.9.0
+pylab==0.1.3
+-e git://github.com/lisa-lab/pylearn2.git@5a21a960e015bb12e931472d70d4918d85fadcf9#egg=pylearn2-master
+pyparsing==2.0.3
+python-dateutil==2.4.2
+pytz==2015.4
+PyYAML==3.11
+pyzmq==14.7.0
+scikit-image==0.11.3
+scikit-learn==0.16.1
 scipy==0.15.1
+seaborn==0.6.0
+six==1.9.0
+sympy==0.7.6
 Theano==0.7.0
+tornado==4.2
