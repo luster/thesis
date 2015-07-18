@@ -1,7 +1,12 @@
-import theano.tensor as T
 import lasagne
-from math import pi, sin, log, exp
-import pylab as P
+import matplotlib.pyplot as P
+import theano.tensor as T
+
+from math import exp
+from math import log
+from math import pi
+from math import sin
+
 
 class TestSignalGenerator(object):
     def __init__(self):
@@ -25,23 +30,34 @@ class TestSignalGenerator(object):
             y.append(3 * sin(g_t))
         return x, y
 
+
+class Plotter(object):
+    def __init__(self):
+        self.ptypes = {
+            'basic': self.basic_plot
+        }
+
+    def __call__(self, x, y, ptype='basic', *args, **kwargs):
+        return self.ptypes[ptype](x, y, *args, **kwargs)
+
+    def basic_plot(self, x, y):
+        P.plot(x, y)
+
+
 if __name__ == '__main__':
     tsg = TestSignalGenerator()
+    p = Plotter()
     kw = {
         'f_start': 20,
         'f_end': 20000,
         'interval': 10,
-        'n_steps': 400000
+        'n_steps': 441000
     }
     x, y = tsg('sineSweep', **kw)
-
-
+    p(x, y)
+    P.show()
 
     # n_observations = 100
     # obs_len = 50
 
-    # l_in = lasagne.layers.InputLayer((n_observations, obs_len))
-    # l_hidden = lasagne.layers.DenseLayer(l_in, num_units=200)
-    # l_out = lasagne.layers.DenseLayer(l_hidden, num_units=10,
-    #                                   nonlinearity=T.nnet.softmax)
 
