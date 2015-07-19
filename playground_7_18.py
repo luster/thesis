@@ -31,19 +31,16 @@ x = x[0:n]
 X = np.matlib.repmat(x, N_obs, 1)
 
 # add noise
-noise = np.random.normal(0, 0.1, (N_obs, len(x)))
+stddev = 0.1
+noise = np.random.normal(0, stddev, (N_obs, len(x)))
 s = X + noise
-test_s = x + np.random.normal(0, 0.1, len(x))
+test_s = x + np.random.normal(0, stddev, len(x))
 
 # shift to 0-1
 def scale(x, a, b):
     return (x-x.min())*(b-a)/(x.max()-x.min()) + a
 test_s = scale(test_s, 0., 1.)
 s = scale(s, 0., 1.)
-
-# window
-# hamming = np.hamming(len(x))
-# s = s * hamming
 
 # configure datasets with theano
 borrow = True
@@ -52,8 +49,6 @@ training_set_x = theano.shared(np.asarray(s, dtype=theano.config.floatX),
 training_set_y = theano.shared(np.asarray(np.zeros((N_obs, 1)), dtype=theano.config.floatX),
                                borrow=borrow)
 training_set_y = T.cast(training_set_y, 'int32')
-# test_s = theano.shared(np.asarray(test_s, dtype=theano.config.floatX),
-                               # borrow=borrow)
 
 # initialize and train autoencoder
 def train_autoencoder(training_set_x):
@@ -73,11 +68,11 @@ def train_autoencoder(training_set_x):
         theano_rng = None,
         input = x,
         n_visible = n,
-        n_hidden = 500
+        n_hidden = 1500
     )
 
     cost, updates = da.get_cost_updates(
-        corruption_level = 0.,
+        corruption_level = 0.2,
         learning_rate = learning_rate
     )
 
@@ -115,12 +110,20 @@ test_s = scale(test_s, -1., 1.)
 ZZ = scale(ZZ, -1., 1.)
 
 # metric - mse
-# s = s/np.hamming(len(s))
 baseline_mse = ((test_s - x)**2).mean()
 autoencode_mse = ((ZZ - x)**2).mean()
 
 print baseline_mse
 print autoencode_mse
 
-P.plot(ZZ)
+fig1 = P.figure()
+ax1 = fig1.add_subplot(111)
+ax1.plot(ZZ)
+ax1.plot(x)
+
+fig2 = P.figure()
+ax2 = fig2.add_subplot(111)
+ax2.plot(test_s)
+ax2.plot(x)
+
 P.show()
