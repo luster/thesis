@@ -7,22 +7,23 @@ import numpy.matlib
 import os
 import theano
 import theano.tensor as T
+# from utils import Signal
 
 from dA.dA import dA
 from scipy.io import wavfile
 from theano.tensor.shared_randomstreams import RandomStreams
 
 
-N_obs = 500
+N_obs = 1000
 here = os.path.dirname(__file__)
-fname = os.path.join(here, 'data', 'sin_440_100msec.wav')
+fname = os.path.join(here, 'data', 'santa_clip.wav')
 fs, x = wavfile.read(fname)
 
 def sigmoid(x):
     return 1.0/(1.0 + np.exp(-x))
 
 # normalize to +/- 1
-x = x/max(abs(x))
+x = x / max(abs(x))
 
 # take only a small portion of the signal - one frame
 msec = 50.
@@ -31,7 +32,7 @@ x = x[0:n]
 X = np.matlib.repmat(x, N_obs, 1)
 
 # add noise
-stddev = 0.001
+stddev = 0.01
 noise = np.random.normal(0, stddev, (N_obs, len(x)))
 s = X + noise
 test_s = x + np.random.normal(0, stddev, len(x))
@@ -53,8 +54,8 @@ training_set_y = T.cast(training_set_y, 'int32')
 
 # initialize and train autoencoder
 def train_autoencoder(training_set_x):
-    learning_rate = 0.01
-    training_epochs = 50
+    learning_rate = 0.1
+    training_epochs = 20
     batch_size = 20
 
     numpy_rng = np.random.RandomState(123)
@@ -69,7 +70,7 @@ def train_autoencoder(training_set_x):
         theano_rng = None,
         input = x,
         n_visible = n,
-        n_hidden = 300
+        n_hidden = 900
     )
 
     cost, updates = da.get_cost_updates(
