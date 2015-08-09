@@ -8,18 +8,18 @@ import os
 import theano
 import theano.tensor as T
 
-from dA import dA
+from dA.dA import dA
 from scipy.io import wavfile
 from theano.tensor.shared_randomstreams import RandomStreams
 
 
-N_obs = 10000
+N_obs = 500
 here = os.path.dirname(__file__)
 fname = os.path.join(here, 'data', 'sin_440_100msec.wav')
 fs, x = wavfile.read(fname)
 
 def sigmoid(x):
-    return 1.0/(1.0+np.exp(-x))
+    return 1.0/(1.0 + np.exp(-x))
 
 # normalize to +/- 1
 x = x/max(abs(x))
@@ -31,14 +31,15 @@ x = x[0:n]
 X = np.matlib.repmat(x, N_obs, 1)
 
 # add noise
-stddev = 0.1
+stddev = 0.001
 noise = np.random.normal(0, stddev, (N_obs, len(x)))
 s = X + noise
 test_s = x + np.random.normal(0, stddev, len(x))
 
 # shift to 0-1
 def scale(x, a, b):
-    return (x-x.min())*(b-a)/(x.max()-x.min()) + a
+    return (x - x.min()) * (b - a) / (x.max() - x.min()) + a
+
 test_s = scale(test_s, 0., 1.)
 s = scale(s, 0., 1.)
 
@@ -52,8 +53,8 @@ training_set_y = T.cast(training_set_y, 'int32')
 
 # initialize and train autoencoder
 def train_autoencoder(training_set_x):
-    learning_rate = 0.1
-    training_epochs = 15
+    learning_rate = 0.01
+    training_epochs = 50
     batch_size = 20
 
     numpy_rng = np.random.RandomState(123)
@@ -68,11 +69,11 @@ def train_autoencoder(training_set_x):
         theano_rng = None,
         input = x,
         n_visible = n,
-        n_hidden = 1500
+        n_hidden = 300
     )
 
     cost, updates = da.get_cost_updates(
-        corruption_level = 0.2,
+        corruption_level = 0.,
         learning_rate = learning_rate
     )
 
@@ -113,16 +114,15 @@ ZZ = scale(ZZ, -1., 1.)
 baseline_mse = ((test_s - x)**2).mean()
 autoencode_mse = ((ZZ - x)**2).mean()
 
-print baseline_mse
-print autoencode_mse
+print "base mse: %.2E" % baseline_mse
+print "mse: %.2E" % autoencode_mse
+print "BETTER" if autoencode_mse < baseline_mse else "WORSE"
 
 fig1 = P.figure()
-ax1 = fig1.add_subplot(111)
+ax1 = fig1.add_subplot(211)
 ax1.plot(ZZ)
 ax1.plot(x)
-
-fig2 = P.figure()
-ax2 = fig2.add_subplot(111)
+ax2 = fig1.add_subplot(212)
 ax2.plot(test_s)
 ax2.plot(x)
 
