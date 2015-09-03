@@ -369,7 +369,7 @@ def test_dA(learning_rate=0.1, training_epochs=15,
         corruption_level=0.3,
         learning_rate=learning_rate
     )
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     train_da = theano.function(
         [index],
         cost,
