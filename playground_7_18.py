@@ -26,8 +26,15 @@ s = make_observation_matrix(x)
 s = scale(s, 0., 1.)
 
 # configure datasets with theano
+params = {
+    'learning_rate': 0.1,
+    'training_epochs': 20,
+    'batch_size': 20,
+    'n_visible': n,
+    'n_hidden': 900,
+}
 training_set_x = theano.shared(np.asarray(s, dtype=theano.config.floatX), borrow=True)
-da = train_autoencoder(training_set_x, n)
+da = train_autoencoder(training_set_x, **params)
 
 # test autoencoder
 test_s = make_test_signal(x)

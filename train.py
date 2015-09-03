@@ -4,10 +4,13 @@ import theano.tensor as T
 from dA.dA import dA
 
 # initialize and train autoencoder
-def train_autoencoder(training_set_x, n_visible):
-    learning_rate = 0.1
-    training_epochs = 20
-    batch_size = 20
+def train_autoencoder(training_set_x, **kwargs):
+    # input parameters
+    learning_rate = kwargs.pop('learning_rate')
+    training_epochs = kwargs.pop('training_epochs')
+    batch_size = kwargs.pop('batch_size')
+    n_visible = kwargs.pop('n_visible')
+    n_hidden = kwargs.pop('n_hidden')
 
     numpy_rng = np.random.RandomState(123)
     index = T.lscalar()  # index to a [mini]batch
@@ -21,7 +24,7 @@ def train_autoencoder(training_set_x, n_visible):
         theano_rng = None,
         input = x,
         n_visible = n_visible,
-        n_hidden = 900
+        n_hidden = n_hidden
     )
 
     cost, updates = da.get_cost_updates(
