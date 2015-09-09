@@ -17,7 +17,7 @@ def scale(x, a, b):
     return (x - x.min()) * (b - a) / (x.max() - x.min()) + a
 
 # take only a small portion of the signal - one frame
-def get_first_frame(x, fs, msec=50., N=1000):
+def get_first_frame(x, fs, msec=50.):
     n = fs / 1000. * msec
     return x[0:n], n
 
