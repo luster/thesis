@@ -1,0 +1,6 @@
+ipython
+matplotlib
+numpy
+Pillow
+scipy
+-e git://github.com/Theano/Theano.git@3b4ccf8b8bfc24a00656ae1d383f466a0ae43e66#egg=Theano-master
