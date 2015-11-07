@@ -248,15 +248,16 @@ class SdA(object):
         :param learning_rate: learning rate used during finetune stage
         '''
 
-        (train_set_x, train_set_y) = datasets[0]
-        (valid_set_x, valid_set_y) = datasets[1]
-        (test_set_x, test_set_y) = datasets[2]
+        train_set_x = datasets
+        # (train_set_x, train_set_y) = datasets[0]
+        # (valid_set_x, valid_set_y) = datasets[1]
+        # (test_set_x, test_set_y) = datasets[2]
 
         # compute number of minibatches for training, validation and testing
-        n_valid_batches = valid_set_x.get_value(borrow=True).shape[0]
-        n_valid_batches /= batch_size
-        n_test_batches = test_set_x.get_value(borrow=True).shape[0]
-        n_test_batches /= batch_size
+        # n_valid_batches = valid_set_x.get_value(borrow=True).shape[0]
+        # n_valid_batches /= batch_size
+        # n_test_batches = test_set_x.get_value(borrow=True).shape[0]
+        # n_test_batches /= batch_size
 
         index = T.lscalar('index')  # index to a [mini]batch
 
@@ -277,50 +278,51 @@ class SdA(object):
                 self.x: train_set_x[
                     index * batch_size: (index + 1) * batch_size
                 ],
-                self.y: train_set_y[
-                    index * batch_size: (index + 1) * batch_size
-                ]
+                # self.y: train_set_y[
+                #     index * batch_size: (index + 1) * batch_size
+                # ]
             },
             name='train'
         )
 
-        test_score_i = theano.function(
-            [index],
-            self.errors,
-            givens={
-                self.x: test_set_x[
-                    index * batch_size: (index + 1) * batch_size
-                ],
-                self.y: test_set_y[
-                    index * batch_size: (index + 1) * batch_size
-                ]
-            },
-            name='test'
-        )
+        # test_score_i = theano.function(
+        #     [index],
+        #     self.errors,
+        #     givens={
+        #         self.x: test_set_x[
+        #             index * batch_size: (index + 1) * batch_size
+        #         ],
+        #         self.y: test_set_y[
+        #             index * batch_size: (index + 1) * batch_size
+        #         ]
+        #     },
+        #     name='test'
+        # )
 
-        valid_score_i = theano.function(
-            [index],
-            self.errors,
-            givens={
-                self.x: valid_set_x[
-                    index * batch_size: (index + 1) * batch_size
-                ],
-                self.y: valid_set_y[
-                    index * batch_size: (index + 1) * batch_size
-                ]
-            },
-            name='valid'
-        )
+        # valid_score_i = theano.function(
+        #     [index],
+        #     self.errors,
+        #     givens={
+        #         self.x: valid_set_x[
+        #             index * batch_size: (index + 1) * batch_size
+        #         ],
+        #         self.y: valid_set_y[
+        #             index * batch_size: (index + 1) * batch_size
+        #         ]
+        #     },
+        #     name='valid'
+        # )
 
         # Create a function that scans the entire validation set
-        def valid_score():
-            return [valid_score_i(i) for i in xrange(n_valid_batches)]
+        # def valid_score():
+        #     return [valid_score_i(i) for i in xrange(n_valid_batches)]
 
-        # Create a function that scans the entire test set
-        def test_score():
-            return [test_score_i(i) for i in xrange(n_test_batches)]
+        # # Create a function that scans the entire test set
+        # def test_score():
+        #     return [test_score_i(i) for i in xrange(n_test_batches)]
 
-        return train_fn, valid_score, test_score
+        # return train_fn, valid_score, test_score
+        return train_fn
 
 
 def test_SdA(finetune_lr=0.1, pretraining_epochs=15,

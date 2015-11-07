@@ -11,6 +11,7 @@ def train_autoencoder(training_set_x, **kwargs):
     batch_size = kwargs.pop('batch_size')
     n_visible = kwargs.pop('n_visible')
     n_hidden = kwargs.pop('n_hidden')
+    corruption_level = kwargs.pop('corruption_level')
 
     numpy_rng = np.random.RandomState(123)
     index = T.lscalar()  # index to a [mini]batch
@@ -28,7 +29,7 @@ def train_autoencoder(training_set_x, **kwargs):
     )
 
     cost, updates = da.get_cost_updates(
-        corruption_level = 0.,
+        corruption_level = corruption_level,
         learning_rate = learning_rate
     )
 
