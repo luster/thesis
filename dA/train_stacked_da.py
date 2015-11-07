@@ -4,7 +4,9 @@ import theano.tensor as T
 import timeit
 from dA.SdA import SdA
 
-def train_stacked_da(training_set_x, **kwargs):
+def train_stacked_da(datasets, **kwargs):
+    training_set_x, validate_set_x, test_set_x = datasets
+
     # input parameters
     pretrain_lr = kwargs.pop('pretrain_lr')
     finetune_lr = kwargs.pop('finetune_lr')
@@ -82,10 +84,53 @@ def train_stacked_da(training_set_x, **kwargs):
     epoch = 0
 
     while (epoch < training_epochs) and (not done_looping):
-        epoch += 1
+        epoch = epoch + 1
         for minibatch_index in xrange(n_train_batches):
             minibatch_avg_cost = train_fn(minibatch_index)
             iter = (epoch - 1) * n_train_batches + minibatch_index
 
             if (iter + 1) % validation_frequency == 0:
                 validation_losses = validate_model()
+                this_validation_loss = numpy.mean(validation_losses)
+                print('epoch %i, minibatch %i/%i, validation error %f %%' %
+                      (epoch, minibatch_index + 1, n_train_batches,
+                       this_validation_loss * 100.))
+
+                # if we got the best validation score until now
+                if this_validation_loss < best_validation_loss:
+
+                    #improve patience if loss improvement is good enough
+                    if (
+                        this_validation_loss < best_validation_loss *
+                        improvement_threshold
+                    ):
+                        patience = max(patience, iter * patience_increase)
+
+                    # save best validation score and iteration number
+                    best_validation_loss = this_validation_loss
+                    best_iter = iter
+
+                    # test it on the test set
+                    test_losses = test_model()
+                    test_score = numpy.mean(test_losses)
+                    print(('     epoch %i, minibatch %i/%i, test error of '
+                           'best model %f %%') %
+                          (epoch, minibatch_index + 1, n_train_batches,
+                           test_score * 100.))
+
+            if patience <= iter:
+                done_looping = True
+                break
+
+    end_time = timeit.default_timer()
+    print(
+        (
+            'Optimization complete with best validation score of %f %%, '
+            'on iteration %i, '
+            'with test performance %f %%'
+        )
+        % (best_validation_loss * 100., best_iter + 1, test_score * 100.)
+    )
+    print >> sys.stderr, ('The training code for file ' +
+                          os.path.split(__file__)[1] +
+                          ' ran for %.2fm' % ((end_time - start_time) / 60.))

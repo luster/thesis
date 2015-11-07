@@ -2,6 +2,13 @@ from __future__ import division
 
 import numpy as np
 
+# generate a sine wave
+def gen_signal(t, f, fs):
+    return np.sin(2. * np.pi * f / fs * t)
+
+# generate sum of signals
+def sum_signals(*args):
+    return sum(args)
 
 # sigmoid function
 def sigmoid(x):

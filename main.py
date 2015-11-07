@@ -25,11 +25,6 @@ here = os.path.dirname(__file__)
 # Generate sum of sine waves
 fs = 44100.
 t = np.arange(fs)
-def gen_signal(t, f, fs):
-    return np.sin(2. * np.pi * f / fs * t)
-
-def sum_signals(*args):
-    return sum(args)
 
 x = sum_signals(
     gen_signal(t, 440, fs),
