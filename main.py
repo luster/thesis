@@ -15,7 +15,7 @@ from scipy.io import wavfile
 from theano.tensor.shared_randomstreams import RandomStreams
 
 
-N = 1000
+N = 10000
 here = os.path.dirname(__file__)
 # fname = os.path.join(here, 'data', 'santa_clip.wav')
 # fs, x = wavfile.read(fname)
@@ -38,7 +38,7 @@ x = sum_signals(
 
 x = normalize(x)
 x, n = get_first_frame(x, fs)
-s = make_observation_matrix(x)
+s = make_observation_matrix(x, N, std=0.01)
 s = scale(s, 0., 1.)
 
 # configure datasets with theano
