@@ -63,7 +63,7 @@ def train_stacked_da(datasets, **kwargs):
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
 
     print '... getting the finetuning functions'
-    train_fn = sda.build_finetune_functions(
+    train_fn, validate_model, test_model = sda.build_finetune_functions(
         datasets=datasets,
         batch_size=batch_size,
         learning_rate=finetune_lr
@@ -136,3 +136,5 @@ def train_stacked_da(datasets, **kwargs):
     print >> sys.stderr, ('The training code for file ' +
                           os.path.split(__file__)[1] +
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
+
+    return sda

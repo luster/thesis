@@ -165,6 +165,20 @@ class SdA(object):
         #     n_in=hidden_layers_sizes[-1],
         #     n_out=n_outs
         # )
+        self.outSigmoidLayer = HiddenLayer(rng=numpy_rng,
+                                           input=self.sigmoid_layers[-1].output,
+                                           n_in=hidden_layers_sizes[i],
+                                           n_out=n_ins,
+                                           activation=T.nnet.sigmoid)
+        self.outLayer = dA(
+            numpy_rng=numpy_rng,
+            theano_rng=theano_rng,
+            input=self.sigmoid_layers[-1].output,
+            n_visible=hidden_layers_sizes[i],
+            n_hidden=n_ins,
+            W=self.outSigmoidLayer.W,
+            bhid=self.outSigmoidLayer.b)
+        self.params.extend([self.outLayer.W, self.outLayer.b])
 
         # self.params.extend(self.logLayer.params)
         # # construct a function that implements one step of finetunining
@@ -187,7 +201,7 @@ class SdA(object):
         next_in = x
         for da in self.dA_layers:
             next_in = da.get_hidden_values(next_in)
-        return da.get_reconstructed_input(next_in)
+        return self.outLayer.get_hidden_values(next_in)
 
     def cost(self, x):
         return T.mean(T.sqr(

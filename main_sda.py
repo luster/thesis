@@ -18,7 +18,7 @@ from theano.tensor.shared_randomstreams import RandomStreams
 
 
 std = 0.005
-N = 100
+N = 1000
 here = os.path.dirname(__file__)
 # fname = os.path.join(here, 'data', 'santa_clip.wav')
 # fs, x = wavfile.read(fname)
@@ -60,6 +60,11 @@ params = {
 }
 pprint(params)
 da = train_stacked_da(datasets, **params)
+
+avg_testing_mse_x = np.mean([mse(x, i) for i in testing.get_value()])
+avg_testing_mse_y = np.mean([da.passthrough(i).eval() for i in testing.get_value()])
+print avg_testing_mse_x
+print avg_testing_mse_y
 
 # # metric - mse
 # test_s = scale(test_s, -1., 1.)
