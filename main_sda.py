@@ -61,9 +61,9 @@ params = {
 pprint(params)
 da = train_stacked_da(datasets, **params)
 
-avg_testing_mse_x = np.mean([mse(x, i) for i in testing.get_value()[0]])
-avg_testing_mse_y = np.mean([mse(x, da.passthrough(i).eval()) for i in testing.get_value()[0]])
+avg_testing_mse_x = np.mean([mse(x, i) for i in testing.get_value()])
 print avg_testing_mse_x
+avg_testing_mse_y = np.mean([mse(x, da.passthrough(i).eval()) for i in testing.get_value()])
 print avg_testing_mse_y
 
 # # metric - mse
