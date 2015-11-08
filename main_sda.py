@@ -18,7 +18,7 @@ from theano.tensor.shared_randomstreams import RandomStreams
 
 
 std = 0.001
-N = 1000
+N = 100
 here = os.path.dirname(__file__)
 # fname = os.path.join(here, 'data', 'santa_clip.wav')
 # fs, x = wavfile.read(fname)
@@ -53,7 +53,7 @@ params = {
     'finetune_lr': 0.1,
     'pretraining_epochs': 15,
     'training_epochs': 50,
-    'batch_size': 1,
+    'batch_size': 5,
     'n_visible': n,
     'n_hidden': [1000, 1000, 1000],
     'corruption_levels': [0.1, 0.2, 0.3],
