@@ -18,7 +18,7 @@ from theano.tensor.shared_randomstreams import RandomStreams
 
 
 std = 0.005
-N = 1000
+N = 100
 here = os.path.dirname(__file__)
 # fname = os.path.join(here, 'data', 'santa_clip.wav')
 # fs, x = wavfile.read(fname)

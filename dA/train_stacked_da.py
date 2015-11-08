@@ -4,6 +4,7 @@ import theano.tensor as T
 import timeit
 from SdA import SdA
 import sys
+import os
 
 def train_stacked_da(datasets, **kwargs):
     training_set_x, validate_set_x, test_set_x = datasets
