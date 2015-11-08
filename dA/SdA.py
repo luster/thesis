@@ -185,7 +185,7 @@ class SdA(object):
 
     def passthrough(self, x):
         next_in = x
-        for da in dA_layers:
+        for da in self.dA_layers:
             next_in = da.get_hidden_values(next_in)
         return da.get_reconstructed_input(next_in)
 
