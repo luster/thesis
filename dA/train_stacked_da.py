@@ -2,7 +2,8 @@ import numpy as np
 import theano
 import theano.tensor as T
 import timeit
-from dA.SdA import SdA
+from SdA import SdA
+import sys
 
 def train_stacked_da(datasets, **kwargs):
     training_set_x, validate_set_x, test_set_x = datasets
@@ -54,7 +55,7 @@ def train_stacked_da(datasets, **kwargs):
                     corruption=corruption_levels[i],
                     lr=pretrain_lr))
             print 'Pre-training layer %i, epoch %d, cost ' % (i, epoch),
-            print numpy.mean(c)
+            print np.mean(c)
     end_time = timeit.default_timer()
     print >> sys.stderr, ('The pretraining code for file ' +
                           os.path.split(__file__)[1] +
@@ -62,7 +63,7 @@ def train_stacked_da(datasets, **kwargs):
 
     print '... getting the finetuning functions'
     train_fn = sda.build_finetune_functions(
-        datasets=training_set_x,
+        datasets=datasets,
         batch_size=batch_size,
         learning_rate=finetune_lr
     )
@@ -91,7 +92,7 @@ def train_stacked_da(datasets, **kwargs):
 
             if (iter + 1) % validation_frequency == 0:
                 validation_losses = validate_model()
-                this_validation_loss = numpy.mean(validation_losses)
+                this_validation_loss = np.mean(validation_losses)
                 print('epoch %i, minibatch %i/%i, validation error %f %%' %
                       (epoch, minibatch_index + 1, n_train_batches,
                        this_validation_loss * 100.))
@@ -112,7 +113,7 @@ def train_stacked_da(datasets, **kwargs):
 
                     # test it on the test set
                     test_losses = test_model()
-                    test_score = numpy.mean(test_losses)
+                    test_score = np.mean(test_losses)
                     print(('     epoch %i, minibatch %i/%i, test error of '
                            'best model %f %%') %
                           (epoch, minibatch_index + 1, n_train_batches,

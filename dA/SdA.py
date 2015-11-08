@@ -180,8 +180,18 @@ class SdA(object):
         # ETHAN: overriding error as MSE metric.. take mean of MSE of minibatch
 
         # finetune cost should compute the mean of the MSE of the layer
-        self.finetune_cost = 0
-        self.errors = 0
+        self.errors = self.finetune_cost
+
+    def passthrough(self, x):
+        next_in = x
+        for da in dA_layers:
+            next_in = da.get_hidden_values(next_in)
+        return da.get_reconstructed_input(next_in)
+
+    def finetune_cost(self, x):
+        return T.mean(T.sqr(
+            x - passthrough(x))
+        )
 
     def pretraining_functions(self, train_set_x, batch_size):
         ''' Generates a list of functions, each of them implementing one
