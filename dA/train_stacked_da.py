@@ -18,6 +18,7 @@ def train_stacked_da(datasets, **kwargs):
     n_visible = kwargs.pop('n_visible')
     n_hidden = kwargs.pop('n_hidden')  # list
     corruption_levels = kwargs.pop('corruption_levels')  # list
+    alpha = kwargs.pop('alpha')
 
     numpy_rng = np.random.RandomState(123)
     index = T.lscalar()  # index to a [mini]batch
@@ -33,7 +34,8 @@ def train_stacked_da(datasets, **kwargs):
         n_ins=n_visible,
         hidden_layers_sizes=n_hidden,
         n_outs=n_visible,
-        corruption_levels=corruption_levels
+        corruption_levels=corruption_levels,
+        alpha=alpha,
     )
 
     print '... getting the pretraining functions'

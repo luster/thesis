@@ -17,8 +17,8 @@ from scipy.io import wavfile
 from theano.tensor.shared_randomstreams import RandomStreams
 
 
-std = 0.005
-N = 500
+std = 0.009
+N = 100
 here = os.path.dirname(__file__)
 # fname = os.path.join(here, 'data', 'santa_clip.wav')
 # fs, x = wavfile.read(fname)
@@ -51,12 +51,13 @@ datasets = [training, validating, testing]
 params = {
     'pretrain_lr': 0.001,
     'finetune_lr': 0.1,
-    'pretraining_epochs': 20,
-    'training_epochs': 100,
-    'batch_size': 5,
+    'pretraining_epochs': 30,
+    'training_epochs': 50,
+    'batch_size': 1,
     'n_visible': n,
     'n_hidden': [1000, 1000, 1000],
     'corruption_levels': [0.1, 0.1, 0.1],
+    'alpha': 0.0000001,
 }
 pprint(params)
 da = train_stacked_da(datasets, **params)

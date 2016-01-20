@@ -63,7 +63,8 @@ class SdA(object):
         n_ins=784,
         hidden_layers_sizes=[500, 500],
         n_outs=10,
-        corruption_levels=[0.1, 0.1]
+        corruption_levels=[0.1, 0.1],
+        alpha=0.01
     ):
         """ This class is made to support a variable number of layers.
 
@@ -94,6 +95,7 @@ class SdA(object):
         self.dA_layers = []
         self.params = []
         self.n_layers = len(hidden_layers_sizes)
+        self.alpha = alpha  # regularization parameter
 
         assert self.n_layers > 0
 
@@ -206,7 +208,7 @@ class SdA(object):
     def cost(self, x):
         return T.mean(T.sqr(
             x - self.passthrough(x))
-        )
+        ) + self.alpha * T.sum(abs(self.passthrough(x)))
 
     def pretraining_functions(self, train_set_x, batch_size):
         ''' Generates a list of functions, each of them implementing one
