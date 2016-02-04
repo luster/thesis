@@ -61,4 +61,4 @@ def build_dataset():
 
 
 if __name__ == '__main__':
-    data = build_dataset()
+    data, labels = build_dataset()
