@@ -8,6 +8,8 @@ import theano.tensor as T
 
 import lasagne
 
+numepochs = 512
+
 lambduh = 0.75  # lambda
 minibatch_size = 16
 hop = 0.5
@@ -31,6 +33,7 @@ numtimebins = 160 # 128 # 48 # NOTE that this size needs really to be compatible
 
 specgram_timeframes = 512
 n_latents = 32
+numfilters = 6
 conv_filter_length = 9  # time frames
 maxpooling_downsample_factor = 16
 
@@ -55,3 +58,5 @@ use_one_file = True
 if use_one_file:
     noise_files = noise_files[0]
     signal_files = signal_files[0]
+
+use_maxpool = True

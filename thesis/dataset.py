@@ -57,7 +57,7 @@ def build_dataset():
             startindex = np.random.randint(specgram.shape[1]-numtimebins)
             training_data[which_training_batch, which_training_datum, :, :, :] = specgram[:, startindex:startindex+numtimebins]
             training_labels[which_training_batch, which_training_datum] = label
-    return training_data, training_labels
+    return training_data, training_labels, noise_specgram, signal_specgram
 
 
 if __name__ == '__main__':
