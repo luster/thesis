@@ -37,6 +37,7 @@ from dataset import build_dataset
 # from plot import plot_probedata
 from norm_layer import NormalisationLayer
 from conv_layer import custom_convlayer
+import util
 
 input_var = T.tensor4('X')
 # note that in general, the main data tensors will have these axes:
