@@ -49,7 +49,7 @@ input_var = T.tensor4('X')
 soft_output_var = T.matrix('y')
 
 # network = lasagne.layers.InputLayer((None, 1, specbinnum, numtimebins), input_var)
-network = lasagne.layers.InputLayer((minibatch_size, 1, specbinnum, numtimebins), input_var)
+network = lasagne.layers.InputLayer((None, 1, specbinnum, numtimebins), input_var)
 
 # normalize layer
 #  -- note that we deliberately normalise the input but do not undo that at the output.
@@ -59,9 +59,6 @@ normlayer = network  # need to keep reference to set its parameters
 
 # convolutional layer
 network, filters_enc = custom_convlayer(network, in_num_chans=specbinnum, out_num_chans=numfilters)
-
-# this should be before the "middle"... moving here
-network = lasagne.layers.NonlinearityLayer(network, nonlinearity=rectify)  # standard rectify since nonnegative target
 
 # maxpool layer
 #   NOTE: here we're using max-pooling, along the time axis only, and then
@@ -75,10 +72,6 @@ if use_maxpool:
 
 # the "middle" of the autoencoder
 latents = network  # might want to inspect and/or regularize these too
-encode = theano.function(
-    [input_var],
-    lasagne.layers.get_output(latents, deterministic=True),
-)
 
 # start to unwrap starting here
 if use_maxpool:
@@ -87,23 +80,21 @@ if use_maxpool:
 network, filters_dec = custom_convlayer(network, in_num_chans=numfilters, out_num_chans=specbinnum)
 
 
+# this should be before the "middle"... moving here
+network = lasagne.layers.NonlinearityLayer(network, nonlinearity=rectify)  # standard rectify since nonnegative target
+
 # loss function, predictions
 prediction = lasagne.layers.get_output(network)
 loss = lasagne.objectives.squared_error(prediction, input_var)
-C = np.zeros(lasagne.layers.get_output_shape(latents))
+sizeof_C = list(lasagne.layers.get_output_shape(latents))
+sizeof_C[0] = minibatch_size
+C = np.zeros(sizeof_C)
 C[0:n_noise_only_examples, :, 0:3, 0:40] = 1
 C_mat = theano.shared(np.asarray(C, dtype=theano.config.floatX), borrow=True)
 mean_C = C.mean()
-CC = T.tensor4('CC')
 
-loss_func = theano.function(
-    [input_var, soft_output_var,],
-    soft_output_var * (CC * encode(input_var))**2,
-    givens={
-        CC: C_mat,
-    }
-)
-loss = loss.mean() + (lambduh/mean_C * regularization_func).mean()
+regularization_term = soft_output_var * ((C_mat * lasagne.layers.get_output(latents)).mean())**2
+loss = (loss.mean() + lambduh/mean_C * regularization_term).mean()
 
 # build dataset
 training_data, training_labels, noise_specgram, signal_specgram = build_dataset()
@@ -193,6 +184,9 @@ plot_probedata('init')
 
 
 if True:
+    # reshape data because of 3rd dim needing to be 1
+    training_labels = training_labels.reshape(training_labels.shape[0], training_labels.shape[1], 1)
+
     # pretrain setup
     normlayer.set_normalisation(training_data)
 
