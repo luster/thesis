@@ -3,6 +3,7 @@
 # Unusual things about this implementation:
 #  * Data is not pre-whitened, instead we use a custom layer (NormalisationLayer) to normalise the mean-and-variance of the data for us. This is because I want the spectrogram to be normalised when it is input but not normalised when it is output.
 #  * It's a convolutional net but only along the time axis; along the frequency axis it's fully-connected.
+from __future__ import division
 
 import numpy as np
 
@@ -45,8 +46,10 @@ input_var = T.tensor4('X')
 #   - numchannels (always 1 for us, since spectrograms)
 #   - numfilters (or specbinnum for input)
 #   - numtimebins
+soft_output_var = T.matrix('y')
 
-network = lasagne.layers.InputLayer((None, 1, specbinnum, numtimebins), input_var)
+# network = lasagne.layers.InputLayer((None, 1, specbinnum, numtimebins), input_var)
+network = lasagne.layers.InputLayer((minibatch_size, 1, specbinnum, numtimebins), input_var)
 
 # normalize layer
 #  -- note that we deliberately normalise the input but do not undo that at the output.
@@ -56,6 +59,9 @@ normlayer = network  # need to keep reference to set its parameters
 
 # convolutional layer
 network, filters_enc = custom_convlayer(network, in_num_chans=specbinnum, out_num_chans=numfilters)
+
+# this should be before the "middle"... moving here
+network = lasagne.layers.NonlinearityLayer(network, nonlinearity=rectify)  # standard rectify since nonnegative target
 
 # maxpool layer
 #   NOTE: here we're using max-pooling, along the time axis only, and then
@@ -69,19 +75,35 @@ if use_maxpool:
 
 # the "middle" of the autoencoder
 latents = network  # might want to inspect and/or regularize these too
+encode = theano.function(
+    [input_var],
+    lasagne.layers.get_output(latents, deterministic=True),
+)
 
 # start to unwrap starting here
 if use_maxpool:
     network = lasagne.layers.InverseLayer(network, maxpool_layer)
 
 network, filters_dec = custom_convlayer(network, in_num_chans=numfilters, out_num_chans=specbinnum)
-network = lasagne.layers.NonlinearityLayer(network, nonlinearity=rectify)  # standard rectify since nonnegative target
 
 
 # loss function, predictions
 prediction = lasagne.layers.get_output(network)
 loss = lasagne.objectives.squared_error(prediction, input_var)
-loss = loss.mean() + 1e-4 * lasagne.regularization.regularize_network_params(network, lasagne.regularization.l2)
+C = np.zeros(lasagne.layers.get_output_shape(latents))
+C[0:n_noise_only_examples, :, 0:3, 0:40] = 1
+C_mat = theano.shared(np.asarray(C, dtype=theano.config.floatX), borrow=True)
+mean_C = C.mean()
+CC = T.tensor4('CC')
+
+loss_func = theano.function(
+    [input_var, soft_output_var,],
+    soft_output_var * (CC * encode(input_var))**2,
+    givens={
+        CC: C_mat,
+    }
+)
+loss = loss.mean() + (lambduh/mean_C * regularization_func).mean()
 
 # build dataset
 training_data, training_labels, noise_specgram, signal_specgram = build_dataset()
@@ -89,7 +111,7 @@ training_data, training_labels, noise_specgram, signal_specgram = build_dataset(
 
 # TODO: wtf is going on with these relative imports???
 
-examplegram_startindex = 500
+examplegram_startindex = 10000
 
 plot_probedata_data = None
 def plot_probedata(outpostfix, plottitle=None):
@@ -104,12 +126,12 @@ def plot_probedata(outpostfix, plottitle=None):
         plot_probedata_data = np.array([[signal_specgram[:, examplegram_startindex:examplegram_startindex+numtimebins]]], float32)
 
     test_prediction = lasagne.layers.get_output(network, deterministic=True)
-    test_latents    = lasagne.layers.get_output(latents, deterministic=True)
+    test_latents = lasagne.layers.get_output(latents, deterministic=True)
     predict_fn = theano.function([input_var], test_prediction)
     latents_fn = theano.function([input_var], test_latents)
     prediction = predict_fn(plot_probedata_data)
     latentsval = latents_fn(plot_probedata_data)
-    if False:
+    if True:
         print("Probedata  has shape %s and meanabs %g" % ( plot_probedata_data.shape, np.mean(np.abs(plot_probedata_data ))))
         print("Latents has shape %s and meanabs %g" % (latentsval.shape, np.mean(np.abs(latentsval))))
         print("Prediction has shape %s and meanabs %g" % (prediction.shape, np.mean(np.abs(prediction))))
@@ -176,13 +198,13 @@ if True:
 
     # training
     params = lasagne.layers.get_all_params(network, trainable=True)
-    updates = lasagne.updates.nesterov_momentum(loss, params, learning_rate=0.01, momentum=0.9)
-    train_fn = theano.function([input_var], loss, updates=updates)
+    updates = lasagne.updates.adadelta(loss, params, learning_rate=0.01, rho=0.5, epsilon=1e-6)
+    train_fn = theano.function([input_var, soft_output_var], loss, updates=updates)
 
     for epoch in range(numepochs):
         loss = 0
-        for input_batch in training_data:
-            loss += train_fn(input_batch)
+        for input_batch, input_batch_soft_labels in zip(training_data, training_labels):
+            loss += train_fn(input_batch, input_batch_soft_labels,)
         if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch):
             lossreadout = loss / len(training_data)
             infostring = "Epoch %d/%d: Loss %g" % (epoch, numepochs, lossreadout)
