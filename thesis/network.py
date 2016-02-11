@@ -71,7 +71,7 @@ network = lasagne.layers.NonlinearityLayer(network, nonlinearity=rectify)  # sta
 #   the InverseLayer may behave slightly unexpectedly, adding some points with
 #   double magnitude. It's OK here since we're not overlapping the windows
 if use_maxpool:
-    network = lasagne.layers.MaxPool2DLayer(network, pool_size=(1,2), stride=(1,2))
+    network = lasagne.layers.MaxPool2DLayer(network, pool_size=(1,5), stride=(1,5))
     maxpool_layer = network  # need to keep reference
 
 # the "middle" of the autoencoder
