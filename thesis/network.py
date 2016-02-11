@@ -236,4 +236,9 @@ if True:
             plot_probedata('progress', plottitle="progress (%s)" % infostring)
 
     plot_probedata('trained', plottitle="trained (%d epochs; Loss %g)" % (numepochs, lossreadout))
+    from datetime import datetime
+    np.savez('network_%s.npz' % datetime.now().strftime('%Y%m%d%H%M%S'), *lasagne.layers.get_all_param_values(network))
+    np.savez('latents_%s.npz' % datetime.now().strftime('%Y%m%d%H%M%S'), *lasagne.layers.get_all_param_values(latents))
+
+
 

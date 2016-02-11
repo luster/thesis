@@ -8,7 +8,7 @@ import theano.tensor as T
 
 import lasagne
 
-numepochs = 32
+numepochs = 2048
 
 lambduh = 0.75  # lambda
 minibatch_size = 64
@@ -21,10 +21,10 @@ srate = 44100
 wavdownsample = 1
 
 n_noise_only_examples = int(noise_only_fraction * minibatch_size)
-background = 0
-foreground = 1
+# background = 0
+# foreground = 1
 
-fft_bins = 128
+fft_bins = 512
 audioframe_len = 512
 audioframe_stride = int(audioframe_len/2)
 specbinlow = 0
