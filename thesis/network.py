@@ -34,7 +34,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 plt.rcParams.update({'font.size': 6})
 
 from config import *
-from dataset import build_dataset
+from dataset import build_dataset, training_data_size
 # from plot import plot_probedata
 from norm_layer import NormalisationLayer
 from conv_layer import custom_convlayer
@@ -47,6 +47,8 @@ input_var = T.tensor4('X')
 #   - numfilters (or specbinnum for input)
 #   - numtimebins
 soft_output_var = T.matrix('y')
+idx = T.lscalar()  # index to a [mini]batch
+
 
 # network = lasagne.layers.InputLayer((None, 1, specbinnum, numtimebins), input_var)
 network = lasagne.layers.InputLayer((None, 1, specbinnum, numtimebins), input_var)
@@ -80,7 +82,7 @@ latents = network  # might want to inspect and/or regularize these too
 class ZeroOutForegroundLatentsLayer(lasagne.layers.Layer):
     def __init__(self, incoming, **kwargs):
         super(ZeroOutForegroundLatentsLayer, self).__init__(incoming, **kwargs)
-        mask = np.zeros((1, 1, 1, numfilters))
+        mask = np.ones((1, 1, 1, numfilters))
         mask[:, :, :, 0:n_background_latents] = 0
         self.mask = theano.shared(mask, borrow=True)
 
@@ -108,9 +110,9 @@ loss = lasagne.objectives.squared_error(prediction, input_var)
 sizeof_C = list(lasagne.layers.get_output_shape(latents))
 sizeof_C[0] = minibatch_size
 C = np.zeros(sizeof_C)
-C[0:n_noise_only_examples, :, :, 0:n_background_latents] = 1
+C[0:n_noise_only_examples, :, :, n_background_latents+1:] = 1
 C_mat = theano.shared(np.asarray(C, dtype=theano.config.floatX), borrow=True)
-mean_C = C.mean()
+mean_C = theano.shared(C.mean(), borrow=True)
 
 regularization_term = soft_output_var * ((C_mat * lasagne.layers.get_output(latents)).mean())**2
 loss = (loss.mean() + lambduh/mean_C * regularization_term).mean()
@@ -204,7 +206,9 @@ plot_probedata('init')
 
 if True:
     # reshape data because of 3rd dim needing to be 1
-    training_labels = training_labels.reshape(training_labels.shape[0], training_labels.shape[1], 1)
+    training_labels_shared = theano.shared(training_labels.reshape(training_labels.shape[0], training_labels.shape[1], 1), borrow=True)
+
+    training_data_shared = theano.shared(np.asarray(training_data, dtype=theano.config.floatX), borrow=True)
 
     # pretrain setup
     normlayer.set_normalisation(training_data)
@@ -212,12 +216,19 @@ if True:
     # training
     params = lasagne.layers.get_all_params(network, trainable=True)
     updates = lasagne.updates.adadelta(loss, params, learning_rate=0.01, rho=0.5, epsilon=1e-6)
-    train_fn = theano.function([input_var, soft_output_var], loss, updates=updates)
+    train_fn = theano.function([idx], loss, updates=updates,
+        givens={
+            input_var: training_data_shared[idx, :, :, :, :],
+            soft_output_var: training_labels_shared[idx, :, :],
+        },
+    )
 
     for epoch in range(numepochs):
         loss = 0
-        for input_batch, input_batch_soft_labels in zip(training_data, training_labels):
-            loss += train_fn(input_batch, input_batch_soft_labels,)
+        for batch_idx in range(training_data_size):
+            loss += train_fn(batch_idx)
+        # for input_batch, input_batch_soft_labels in zip(training_data, training_labels):
+            # loss += train_fn(input_batch, input_batch_soft_labels,)
         if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch):
             lossreadout = loss / len(training_data)
             infostring = "Epoch %d/%d: Loss %g" % (epoch, numepochs, lossreadout)

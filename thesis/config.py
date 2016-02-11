@@ -8,7 +8,7 @@ import theano.tensor as T
 
 import lasagne
 
-numepochs = 512
+numepochs = 32
 
 lambduh = 0.75  # lambda
 minibatch_size = 64

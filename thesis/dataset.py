@@ -31,18 +31,18 @@ from config import (
 )
 from util import standard_specgram, load_soundfile
 
-background = 0
-foreground = 1
+background = 1.
+foreground = 0.
 
-training_data_size = 256
+training_data_size = 32
 
 def build_dataset():
     if use_one_file:
         noise_specgram = standard_specgram(load_soundfile(noise_files, 0))
         signal_specgram = standard_specgram(load_soundfile(signal_files, 0))
 
-    training_data = np.zeros((training_data_size, minibatch_size, 1, specbinnum, numtimebins), dtype=float32)
-    training_labels = np.zeros((training_data_size, minibatch_size))
+    training_data = np.zeros((training_data_size, minibatch_size, 1, specbinnum, numtimebins), dtype=theano.config.floatX)
+    training_labels = np.zeros((training_data_size, minibatch_size), dtype=theano.config.floatX)
 
     noise_minibatch_range = range(n_noise_only_examples)
 
