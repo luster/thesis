@@ -11,7 +11,7 @@ import lasagne
 numepochs = 512
 
 lambduh = 0.75  # lambda
-minibatch_size = 16
+minibatch_size = 64
 hop = 0.5
 n_freq_bins = 32
 n_iterations = 10**6
@@ -26,14 +26,15 @@ foreground = 1
 
 fft_bins = 128
 audioframe_len = 512
-audioframe_stride = audioframe_len/2
+audioframe_stride = int(audioframe_len/2)
 specbinlow = 0
-specbinnum = fft_bins
+specbinnum = int(fft_bins/2.)
 numtimebins = 160 # 128 # 48 # NOTE that this size needs really to be compatible with downsampling (maxpooling) steps if you use them.
 
 specgram_timeframes = 512
 n_latents = 32
-numfilters = 6
+n_background_latents = int(0.25 * n_latents)
+numfilters = 32
 conv_filter_length = 9  # time frames
 maxpooling_downsample_factor = 16
 

@@ -13,7 +13,10 @@ from config import *
 
 def standard_specgram(signal):#, audioframe_len, audioframe_stride, specbinlow, specbinnum):
     "Return specgram matrix, made using the audio-layer config"
-    return np.array(specgram(signal, NFFT=audioframe_len, noverlap=audioframe_len - audioframe_stride, window=np.hamming(audioframe_len))[0][specbinlow:specbinlow + specbinnum, :], dtype=float32)
+    return np.array(specgram(signal,
+        NFFT=audioframe_len,
+        noverlap=audioframe_len - audioframe_stride,
+        window=np.hamming(audioframe_len))[0][specbinlow:specbinlow + specbinnum, :], dtype=float32)
 
 
 def load_soundfile(inwavpath, startpossecs, maxdursecs=None):

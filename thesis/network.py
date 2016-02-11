@@ -50,6 +50,7 @@ soft_output_var = T.matrix('y')
 
 # network = lasagne.layers.InputLayer((None, 1, specbinnum, numtimebins), input_var)
 network = lasagne.layers.InputLayer((None, 1, specbinnum, numtimebins), input_var)
+# dims: minibatchsize x channels x rows x cols
 
 # normalize layer
 #  -- note that we deliberately normalise the input but do not undo that at the output.
@@ -58,7 +59,10 @@ network = NormalisationLayer(network, specbinnum)
 normlayer = network  # need to keep reference to set its parameters
 
 # convolutional layer
-network, filters_enc = custom_convlayer(network, in_num_chans=specbinnum, out_num_chans=numfilters)
+# network, filters_enc = custom_convlayer(network, in_num_chans=specbinnum, out_num_chans=numfilters)
+network, filters_enc = custom_convlayer(network, in_num_chans=specbinnum, out_num_chans=1)
+
+network = lasagne.layers.NonlinearityLayer(network, nonlinearity=rectify)  # standard rectify since nonnegative target
 
 # maxpool layer
 #   NOTE: here we're using max-pooling, along the time axis only, and then
@@ -73,15 +77,30 @@ if use_maxpool:
 # the "middle" of the autoencoder
 latents = network  # might want to inspect and/or regularize these too
 
+class ZeroOutForegroundLatentsLayer(lasagne.layers.Layer):
+    def __init__(self, incoming, **kwargs):
+        super(ZeroOutForegroundLatentsLayer, self).__init__(incoming, **kwargs)
+        mask = np.zeros((1, 1, 1, numfilters))
+        mask[:, :, :, 0:n_background_latents] = 0
+        self.mask = theano.shared(mask, borrow=True)
+
+    def get_output_for(self, input_data, reconstruct=False, **kwargs):
+        if reconstruct:
+            return self.mask * input_data
+        return input_data
+
+network = ZeroOutForegroundLatentsLayer(latents)
+
+# WANT latents.output_shape = (None, 1, 1, num_latents)
+
 # start to unwrap starting here
 if use_maxpool:
     network = lasagne.layers.InverseLayer(network, maxpool_layer)
 
-network, filters_dec = custom_convlayer(network, in_num_chans=numfilters, out_num_chans=specbinnum)
 
-
-# this should be before the "middle"... moving here
-network = lasagne.layers.NonlinearityLayer(network, nonlinearity=rectify)  # standard rectify since nonnegative target
+network, _ = custom_convlayer(network, in_num_chans=1, out_num_chans=specbinnum)
+# reconstruct_network, filters_dec = custom_convlayer(reconstruct_network, in_num_chans=1, out_num_chans=specbinnum)
+# network, filters_dec = custom_convlayer(network, in_num_chans=numfilters, out_num_chans=specbinnum)
 
 # loss function, predictions
 prediction = lasagne.layers.get_output(network)
@@ -89,7 +108,7 @@ loss = lasagne.objectives.squared_error(prediction, input_var)
 sizeof_C = list(lasagne.layers.get_output_shape(latents))
 sizeof_C[0] = minibatch_size
 C = np.zeros(sizeof_C)
-C[0:n_noise_only_examples, :, 0:3, 0:40] = 1
+C[0:n_noise_only_examples, :, :, 0:n_background_latents] = 1
 C_mat = theano.shared(np.asarray(C, dtype=theano.config.floatX), borrow=True)
 mean_C = C.mean()
 
@@ -116,13 +135,13 @@ def plot_probedata(outpostfix, plottitle=None):
     if np.shape(plot_probedata_data)==():
         plot_probedata_data = np.array([[signal_specgram[:, examplegram_startindex:examplegram_startindex+numtimebins]]], float32)
 
-    test_prediction = lasagne.layers.get_output(network, deterministic=True)
+    test_prediction = lasagne.layers.get_output(network, deterministic=True, reconstruct=True)
     test_latents = lasagne.layers.get_output(latents, deterministic=True)
     predict_fn = theano.function([input_var], test_prediction)
     latents_fn = theano.function([input_var], test_latents)
     prediction = predict_fn(plot_probedata_data)
     latentsval = latents_fn(plot_probedata_data)
-    if True:
+    if False:
         print("Probedata  has shape %s and meanabs %g" % ( plot_probedata_data.shape, np.mean(np.abs(plot_probedata_data ))))
         print("Latents has shape %s and meanabs %g" % (latentsval.shape, np.mean(np.abs(latentsval))))
         print("Prediction has shape %s and meanabs %g" % (prediction.shape, np.mean(np.abs(prediction))))
