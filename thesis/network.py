@@ -133,7 +133,7 @@ def plot_probedata(outpostfix, plottitle=None):
         plottitle = outpostfix
 
     if np.shape(plot_probedata_data)==():
-        plot_probedata_data = np.array([[signal_specgram[:, examplegram_startindex:examplegram_startindex+numtimebins]]], float32)
+        plot_probedata_data = np.array([[noise_specgram[:, examplegram_startindex:examplegram_startindex+numtimebins]]], float32)
 
     test_prediction = lasagne.layers.get_output(network, deterministic=True, reconstruct=True)
     test_latents = lasagne.layers.get_output(latents, deterministic=True)
@@ -170,31 +170,31 @@ def plot_probedata(outpostfix, plottitle=None):
     pdf.savefig()
     plt.close()
     ##
-    for filtvar, filtlbl, isenc in [
-        (filters_enc, 'encoding', True),
-        (filters_dec, 'decoding', False),
-            ]:
-        plt.figure(frameon=False)
-        vals = filtvar.get_value()
-        #print("        %s filters have shape %s" % (filtlbl, vals.shape))
-        vlim = np.max(np.abs(vals))
-        for whichfilt in range(numfilters):
-            plt.subplot(3, 8, whichfilt+1)
-            # NOTE: for encoding/decoding filters, we grab the "slice" of interest from the tensor in different ways: different axes, and flipped.
-            if isenc:
-                plotdata = vals[numfilters-(1+whichfilt),0,::-1,::-1]
-            else:
-                plotdata = vals[:,0,whichfilt,:]
+    # for filtvar, filtlbl, isenc in [
+    #     # (filters_enc, 'encoding', True),
+    #     (filters_dec, 'decoding', False),
+    #         ]:
+    #     plt.figure(frameon=False)
+    #     vals = filtvar.get_value()
+    #     #print("        %s filters have shape %s" % (filtlbl, vals.shape))
+    #     vlim = np.max(np.abs(vals))
+    #     for whichfilt in range(numfilters):
+    #         plt.subplot(3, 8, whichfilt+1)
+    #         # NOTE: for encoding/decoding filters, we grab the "slice" of interest from the tensor in different ways: different axes, and flipped.
+    #         if isenc:
+    #             plotdata = vals[numfilters-(1+whichfilt),0,::-1,::-1]
+    #         else:
+    #             plotdata = vals[:,0,whichfilt,:]
 
-            plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-vlim, vmax=vlim)
-            plt.xticks([])
-            if whichfilt==0:
-                plt.title("%s filters (%s)" % (filtlbl, outpostfix))
-            else:
-                plt.yticks([])
+    #         plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-vlim, vmax=vlim)
+    #         plt.xticks([])
+    #         if whichfilt==0:
+    #             plt.title("%s filters (%s)" % (filtlbl, outpostfix))
+    #         else:
+    #             plt.yticks([])
 
-        pdf.savefig()
-        plt.close()
+        # pdf.savefig()
+        # plt.close()
     ##
     pdf.close()
 
