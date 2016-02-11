@@ -98,7 +98,7 @@ if use_maxpool:
     network = lasagne.layers.InverseLayer(network, maxpool_layer)
 
 
-network, _ = custom_convlayer(network, in_num_chans=1, out_num_chans=specbinnum)
+network, filters_dec = custom_convlayer(network, in_num_chans=1, out_num_chans=specbinnum)
 # reconstruct_network, filters_dec = custom_convlayer(reconstruct_network, in_num_chans=1, out_num_chans=specbinnum)
 # network, filters_dec = custom_convlayer(network, in_num_chans=numfilters, out_num_chans=specbinnum)
 
