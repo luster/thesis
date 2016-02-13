@@ -8,11 +8,11 @@ import theano.tensor as T
 
 import lasagne
 
-training_data_size = 256
-numepochs = 64
+training_data_size = 128
+numepochs = 32
 
 lambduh = 0.75  # lambda
-minibatch_size = 32
+minibatch_size = 16
 hop = 0.5
 n_freq_bins = 32
 n_iterations = 10**6

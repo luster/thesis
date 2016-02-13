@@ -47,7 +47,7 @@ input_var = T.tensor4('X')
 #   - numfilters (or specbinnum for input)
 #   - numtimebins
 soft_output_var = T.matrix('y')
-idx = T.scalar()  # index to a [mini]batch
+idx = T.iscalar()  # index to a [mini]batch
 
 
 # network = lasagne.layers.InputLayer((None, 1, specbinnum, numtimebins), input_var)
@@ -201,7 +201,7 @@ def plot_probedata(outpostfix, plottitle=None):
     ##
     pdf.close()
 
-plot_probedata('init')
+# plot_probedata('init')
 
 
 
@@ -213,22 +213,26 @@ if True:
 
     # pretrain setup
     normlayer.set_normalisation(training_data)
+    indx = theano.shared(0)
 
     # training
     params = lasagne.layers.get_all_params(network, trainable=True)
     updates = lasagne.updates.adadelta(loss, params, learning_rate=0.01, rho=0.5, epsilon=1e-6)
-    train_fn = theano.function([idx], loss, updates=updates,
+    # import ipdb; ipdb.set_trace()
+    updates[indx] = indx + 1
+    train_fn = theano.function([], loss, updates=updates,
         givens={
-            input_var: training_data_shared[idx, :, :, :, :],
-            soft_output_var: training_labels_shared[idx, :, :],
+            input_var: training_data_shared[indx, :, :, :, :],
+            soft_output_var: training_labels_shared[indx, :, :],
         },
         allow_input_downcast=True,
     )
 
     for epoch in range(numepochs):
         loss = 0
+        indx.set_value(0)
         for batch_idx in range(training_data_size):
-            loss += train_fn(batch_idx)
+            loss += train_fn()
         # for input_batch, input_batch_soft_labels in zip(training_data, training_labels):
             # loss += train_fn(input_batch, input_batch_soft_labels,)
         if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch):
