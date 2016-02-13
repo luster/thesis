@@ -8,10 +8,11 @@ import theano.tensor as T
 
 import lasagne
 
-numepochs = 2048
+training_data_size = 256
+numepochs = 64
 
 lambduh = 0.75  # lambda
-minibatch_size = 64
+minibatch_size = 32
 hop = 0.5
 n_freq_bins = 32
 n_iterations = 10**6
@@ -24,19 +25,19 @@ n_noise_only_examples = int(noise_only_fraction * minibatch_size)
 # background = 0
 # foreground = 1
 
-fft_bins = 512
+fft_bins = 128
 audioframe_len = 512
 audioframe_stride = int(audioframe_len/2)
 specbinlow = 0
 specbinnum = int(fft_bins/2.)
-numtimebins = 160 # 128 # 48 # NOTE that this size needs really to be compatible with downsampling (maxpooling) steps if you use them.
+numtimebins = 128 # 128 # 48 # NOTE that this size needs really to be compatible with downsampling (maxpooling) steps if you use them.
 
 specgram_timeframes = 512
 n_latents = 32
 n_background_latents = int(0.25 * n_latents)
 numfilters = 32
 conv_filter_length = 9  # time frames
-maxpooling_downsample_factor = 16
+maxpooling_downsample_factor = 4
 
 # train with AdaDelta to control SGD learning rates
 # no dropout

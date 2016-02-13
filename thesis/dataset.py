@@ -28,13 +28,13 @@ from config import (
     use_one_file,
     specbinnum,
     numtimebins,
+    training_data_size,
 )
 from util import standard_specgram, load_soundfile
 
 background = 1.
 foreground = 0.
 
-training_data_size = 256
 
 def build_dataset():
     if use_one_file:

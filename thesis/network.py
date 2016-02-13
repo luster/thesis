@@ -73,7 +73,8 @@ network = lasagne.layers.NonlinearityLayer(network, nonlinearity=rectify)  # sta
 #   the InverseLayer may behave slightly unexpectedly, adding some points with
 #   double magnitude. It's OK here since we're not overlapping the windows
 if use_maxpool:
-    network = lasagne.layers.MaxPool2DLayer(network, pool_size=(1,5), stride=(1,5))
+    mp_down_factor = maxpooling_downsample_factor
+    network = lasagne.layers.MaxPool2DLayer(network, pool_size=(1,mp_down_factor), stride=(1,mp_down_factor))
     maxpool_layer = network  # need to keep reference
 
 # the "middle" of the autoencoder
@@ -204,7 +205,7 @@ plot_probedata('init')
 
 
 
-if True:
+if False:
     # reshape data because of 3rd dim needing to be 1
     training_labels_shared = theano.shared(training_labels.reshape(training_labels.shape[0], training_labels.shape[1], 1), borrow=True)
 
@@ -216,7 +217,7 @@ if True:
     # training
     params = lasagne.layers.get_all_params(network, trainable=True)
     updates = lasagne.updates.adadelta(loss, params, learning_rate=0.01, rho=0.5, epsilon=1e-6)
-    train_fn = theano.function([idx], loss, updates=updates,
+    train_fn = theano.function([idx], updates=updates,
         givens={
             input_var: training_data_shared[idx, :, :, :, :],
             soft_output_var: training_labels_shared[idx, :, :],
