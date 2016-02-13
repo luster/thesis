@@ -3,7 +3,7 @@ import os
 from glob import glob
 
 import numpy as np
-from numpy import float32
+from numpy import float32, complex64
 
 import theano
 import theano.tensor as T
@@ -29,20 +29,30 @@ from config import (
     specbinnum,
     numtimebins,
     training_data_size,
+    use_complex,
 )
-from util import standard_specgram, load_soundfile
+from util import standard_specgram, load_soundfile, stft
 
 background = 1.
 foreground = 0.
 
 
-def build_dataset():
-    if use_one_file:
-        noise_specgram = standard_specgram(load_soundfile(noise_files, 0))
-        signal_specgram = standard_specgram(load_soundfile(signal_files, 0))
+def build_dataset(use_stft=False):
+    if use_stft:
+        dtype = complex64
+        freq_transform = stft
+    else:
+        dtype = theano.config.floatX
+        freq_transform = standard_specgram
 
-    training_data = np.zeros((training_data_size, minibatch_size, 1, specbinnum, numtimebins), dtype=theano.config.floatX)
-    training_labels = np.zeros((training_data_size, minibatch_size), dtype=theano.config.floatX)
+    if use_one_file:
+        x_noise = load_soundfile(noise_files, 0)
+        x_signal = load_soundfile(signal_files, 0)
+        noise_specgram, noise_phasegram = freq_transform(x_noise)
+        signal_specgram, signal_phasegram = freq_transform(x_signal)
+
+    training_data = np.zeros((training_data_size, minibatch_size, 1, specbinnum, numtimebins), dtype=dtype)
+    training_labels = np.zeros((training_data_size, minibatch_size), dtype=dtype)
 
     noise_minibatch_range = range(n_noise_only_examples)
 
@@ -57,8 +67,11 @@ def build_dataset():
             startindex = np.random.randint(specgram.shape[1]-numtimebins)
             training_data[which_training_batch, which_training_datum, :, :, :] = specgram[:, startindex:startindex+numtimebins]
             training_labels[which_training_batch, which_training_datum] = label
-    return training_data, training_labels, noise_specgram, signal_specgram
+    return (training_data, training_labels,
+        noise_specgram, signal_specgram,
+        x_noise, x_signal,
+        noise_phasegram, signal_phasegram)
 
 
 if __name__ == '__main__':
-    data, labels, noisegram, signalgram = build_dataset()
+    data, labels, noisegram, signalgram, x_noise, x_signal, noise_phasegram, signal_phasegram = build_dataset()

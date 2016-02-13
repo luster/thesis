@@ -6,6 +6,7 @@ import theano.tensor as T
 
 from lasagne.layers.base import Layer
 
+from config import *
 
 class NormalisationLayer(Layer):
     """
@@ -21,10 +22,14 @@ class NormalisationLayer(Layer):
         self._output_shape = None
         self.initialised = False
         # and for the normalisation, per frequency bin - typically, we "sub" the mean and then "mul" by 1/std (I write this as mul rather than div because often more efficient)
-        self.normn_sub = theano.shared(np.zeros((1, 1, numbins,  1), dtype=theano.config.floatX), borrow=True, name='norm_sub', broadcastable=(1, 1, 0, 1))
-        self.normn_mul = theano.shared(np.ones( (1, 1, numbins,  1), dtype=theano.config.floatX), borrow=True, name='norm_mul', broadcastable=(1, 1, 0, 1))
+        self.normn_sub = theano.shared(np.zeros((1, 1, numbins,  1), dtype=dtype), borrow=True, name='norm_sub', broadcastable=(1, 1, 0, 1))
+        self.normn_mul = theano.shared(np.ones( (1, 1, numbins,  1), dtype=dtype), borrow=True, name='norm_mul', broadcastable=(1, 1, 0, 1))
         # here we're defining a theano func that I can use to "manually" normalise some data if needed as a separate thing
-        inputdata = T.tensor4('inputdata')
+
+        if use_complex:
+            inputdata = T.ctensor4('inputdata')
+        else:
+            inputdata = T.tensor4('inputdata')
         self.transform_some_data = theano.function([inputdata], (inputdata - self.normn_sub) * self.normn_mul)
 
     def get_output_shape_for(self, input_shape):
@@ -43,7 +48,7 @@ class NormalisationLayer(Layer):
         #print("data.shape: %s" % str(data.shape))
 
         centre = np.mean(data, axis=1)
-        self.normn_sub.set_value( centre.astype(theano.config.floatX).reshape((1,1,numbins,1)), borrow=True)
+        self.normn_sub.set_value( centre.astype(dtype).reshape((1,1,numbins,1)), borrow=True)
         self.normn_mul.set_value(1. / data.std( axis=1).reshape((1,1,-1,1)), borrow=True)
 
         self.initialised = True

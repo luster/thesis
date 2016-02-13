@@ -8,6 +8,12 @@ import theano.tensor as T
 
 import lasagne
 
+use_complex = True
+if use_complex:
+    dtype = np.complex64
+else:
+    dtype = theano.config.floatX
+
 training_data_size = 128
 numepochs = 32
 
@@ -30,6 +36,7 @@ audioframe_len = 512
 audioframe_stride = int(audioframe_len/2)
 specbinlow = 0
 specbinnum = int(fft_bins/2.)
+specbinnum = fft_bins
 numtimebins = 128 # 128 # 48 # NOTE that this size needs really to be compatible with downsampling (maxpooling) steps if you use them.
 
 specgram_timeframes = 512
@@ -58,7 +65,7 @@ signal_files = glob(signal_pattern)
 
 use_one_file = True
 if use_one_file:
-    noise_files = noise_files[0]
-    signal_files = signal_files[0]
+    noise_files = noise_files[1]
+    signal_files = signal_files[1]
 
 use_maxpool = True

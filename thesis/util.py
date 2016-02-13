@@ -1,22 +1,59 @@
 # Borrowed from Dan Stowell via https://github.com/danstowell/autoencoder-specgram
 import numpy as np
-from numpy import float32
+from numpy import float32, complex64
 
 import os
 import errno
 from scikits.audiolab import Sndfile
 from scikits.audiolab import Format
 
-from matplotlib.mlab import specgram
+import scipy
+
+from matplotlib.mlab import specgram, phase_spectrum
 
 from config import *
+
+# Originally from http://stackoverflow.com/a/6891772/125507
+def stft(x):  # fs, framesz, hop):
+    """x is the time-domain signal
+    fs is the sampling frequency
+    framesz is the frame size, in seconds
+    hop is the the time between the start of consecutive frames, in seconds
+    """
+    framesamp = audioframe_len
+    hopsamp = audioframe_stride
+    w = scipy.hamming(framesamp)
+    X = np.array([scipy.fft(w*x[i:i+framesamp], numtimebins)
+                     for i in range(0, len(x)-framesamp, hopsamp)])
+    shape = X.shape
+    return X.reshape((1, shape[0], shape[1]))
+
+
+def istft(X, x_original):  #, fs, T, hop):
+    """X is the short-time Fourier transform
+    fs is the sampling frequency
+    T is the total length of the time-domain output in seconds
+    hop is the the time between the start of consecutive frames, in seconds
+    """
+    fs = srate
+    T = len(x_original)
+    x = scipy.zeros(T*fs)
+    framesamp = X.shape[1]
+    hopsamp = audioframe_stride
+    for n,i in enumerate(range(0, len(x)-framesamp, hopsamp)):
+        x[i:i+framesamp] += scipy.real(scipy.ifft(X[n]))
+    return x
+
 
 def standard_specgram(signal):#, audioframe_len, audioframe_stride, specbinlow, specbinnum):
     "Return specgram matrix, made using the audio-layer config"
     return np.array(specgram(signal,
         NFFT=audioframe_len,
         noverlap=audioframe_len - audioframe_stride,
-        window=np.hamming(audioframe_len))[0][specbinlow:specbinlow + specbinnum, :], dtype=float32)
+        window=np.hamming(audioframe_len),
+        mode='magnitude')[0][specbinlow:specbinlow + specbinnum, :], dtype=float32), np.array(
+            specgram(signal, NFFT=audioframe_len, noverlap=audioframe_len - audioframe_stride,
+                window=np.hamming(audioframe_len), mode='phase'))
 
 
 def load_soundfile(inwavpath, startpossecs, maxdursecs=None):
@@ -106,3 +143,4 @@ def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
 
 if __name__ == '__main__':
     y = standard_specgram(load_soundfile(signal_files, 0))
+    yy = stft(load_soundfile(signal_files, 0))
