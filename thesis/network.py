@@ -26,7 +26,7 @@ except ImportError:
     use_maxpool = False
 
 import matplotlib
-#matplotlib.use('PDF') # http://www.astrobetter.com/plotting-to-a-file-in-python/
+matplotlib.use('PDF') # http://www.astrobetter.com/plotting-to-a-file-in-python/
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 
@@ -85,7 +85,7 @@ class ZeroOutForegroundLatentsLayer(lasagne.layers.Layer):
         super(ZeroOutForegroundLatentsLayer, self).__init__(incoming, **kwargs)
         mask = np.ones((1, 1, 1, numfilters))
         mask[:, :, :, 0:n_background_latents] = 0
-        self.mask = theano.shared(mask, borrow=True)
+        self.mask = theano.shared(mask, borrow=False)
 
     def get_output_for(self, input_data, reconstruct=False, **kwargs):
         if reconstruct:
@@ -112,8 +112,8 @@ sizeof_C = list(lasagne.layers.get_output_shape(latents))
 sizeof_C[0] = minibatch_size
 C = np.zeros(sizeof_C)
 C[0:n_noise_only_examples, :, :, n_background_latents+1:] = 1
-C_mat = theano.shared(np.asarray(C, dtype=theano.config.floatX), borrow=True)
-mean_C = theano.shared(C.mean(), borrow=True)
+C_mat = theano.shared(np.asarray(C, dtype=theano.config.floatX), borrow=False)
+mean_C = theano.shared(C.mean(), borrow=False)
 
 regularization_term = soft_output_var * ((C_mat * lasagne.layers.get_output(latents)).mean())**2
 loss = (loss.mean() + lambduh/mean_C * regularization_term).mean()
@@ -205,11 +205,11 @@ plot_probedata('init')
 
 
 
-if False:
+if True:
     # reshape data because of 3rd dim needing to be 1
-    training_labels_shared = theano.shared(training_labels.reshape(training_labels.shape[0], training_labels.shape[1], 1), borrow=True)
+    training_labels_shared = theano.shared(training_labels.reshape(training_labels.shape[0], training_labels.shape[1], 1), borrow=False)
 
-    training_data_shared = theano.shared(np.asarray(training_data, dtype=theano.config.floatX), borrow=True)
+    training_data_shared = theano.shared(np.asarray(training_data, dtype=theano.config.floatX), borrow=False)
 
     # pretrain setup
     normlayer.set_normalisation(training_data)
@@ -217,11 +217,12 @@ if False:
     # training
     params = lasagne.layers.get_all_params(network, trainable=True)
     updates = lasagne.updates.adadelta(loss, params, learning_rate=0.01, rho=0.5, epsilon=1e-6)
-    train_fn = theano.function([idx], updates=updates,
+    train_fn = theano.function([idx], loss, updates=updates,
         givens={
             input_var: training_data_shared[idx, :, :, :, :],
             soft_output_var: training_labels_shared[idx, :, :],
         },
+        allow_input_downcast=True,
     )
 
     for epoch in range(numepochs):
