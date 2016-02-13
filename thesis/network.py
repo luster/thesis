@@ -47,7 +47,7 @@ input_var = T.tensor4('X')
 #   - numfilters (or specbinnum for input)
 #   - numtimebins
 soft_output_var = T.matrix('y')
-idx = T.lscalar()  # index to a [mini]batch
+idx = T.scalar()  # index to a [mini]batch
 
 
 # network = lasagne.layers.InputLayer((None, 1, specbinnum, numtimebins), input_var)
