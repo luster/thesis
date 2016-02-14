@@ -8,7 +8,7 @@ import theano.tensor as T
 
 import lasagne
 
-use_complex = True
+use_complex = False
 if use_complex:
     dtype = np.complex64
 else:

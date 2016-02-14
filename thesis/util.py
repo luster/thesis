@@ -24,9 +24,9 @@ def stft(x):  # fs, framesz, hop):
     hopsamp = audioframe_stride
     w = scipy.hamming(framesamp)
     X = np.array([scipy.fft(w*x[i:i+framesamp], numtimebins)
-                     for i in range(0, len(x)-framesamp, hopsamp)])
+                     for i in range(0, len(x)-framesamp, hopsamp)], dtype=complex64)
     shape = X.shape
-    return X.reshape((1, shape[0], shape[1]))
+    return X.reshape((1, shape[0], shape[1])), None
 
 
 def istft(X, x_original):  #, fs, T, hop):
@@ -53,7 +53,7 @@ def standard_specgram(signal):#, audioframe_len, audioframe_stride, specbinlow, 
         window=np.hamming(audioframe_len),
         mode='magnitude')[0][specbinlow:specbinlow + specbinnum, :], dtype=float32), np.array(
             specgram(signal, NFFT=audioframe_len, noverlap=audioframe_len - audioframe_stride,
-                window=np.hamming(audioframe_len), mode='phase'))
+                window=np.hamming(audioframe_len), mode='phase')[0][specbinlow:specbinlow + specbinnum, :], dtype=float32)
 
 
 def load_soundfile(inwavpath, startpossecs, maxdursecs=None):

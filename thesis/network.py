@@ -120,6 +120,8 @@ mean_C = theano.shared(C.mean(), borrow=False)
 
 regularization_term = soft_output_var * ((C_mat * lasagne.layers.get_output(latents)).mean())**2
 loss = (loss.mean() + lambduh/mean_C * regularization_term).mean()
+if use_complex:
+    loss = abs(loss)
 
 # build dataset
 training_data, training_labels, noise_specgram, signal_specgram, x_noise, x_signal, noise_phasegram, signal_phasegram = build_dataset(use_stft=use_complex)
@@ -127,6 +129,8 @@ training_data, training_labels, noise_specgram, signal_specgram, x_noise, x_sign
 # TODO: wtf is going on with these relative imports???
 
 examplegram_startindex = 10000
+time_index = 10000
+samples = 44100
 
 plot_probedata_data = None
 def plot_probedata(outpostfix, plottitle=None):
@@ -146,6 +150,11 @@ def plot_probedata(outpostfix, plottitle=None):
     latents_fn = theano.function([input_var], test_latents)
     prediction = predict_fn(plot_probedata_data)
     latentsval = latents_fn(plot_probedata_data)
+
+    from util import istft
+    reconstructed_stft = prediction * np.exp(1j*noise_phasegram[:, examplegram_startindex:examplegram_startindex+numtimebins])
+    # import ipdb; ipdb.set_trace()
+    reconstructed = istft(reconstructed_stft.reshape((reconstructed_stft.shape[2], reconstructed_stft.shape[3])), x_noise)
     if False:
         print("Probedata  has shape %s and meanabs %g" % ( plot_probedata_data.shape, np.mean(np.abs(plot_probedata_data ))))
         print("Latents has shape %s and meanabs %g" % (latentsval.shape, np.mean(np.abs(latentsval))))
@@ -156,22 +165,27 @@ def plot_probedata(outpostfix, plottitle=None):
     pdf = PdfPages('pdf/autoenc_probe_%s.pdf' % outpostfix)
     plt.figure(frameon=False)
     #
-    plt.subplot(3, 1, 1)
+    plt.subplot(4, 1, 1)
     plotdata = plot_probedata_data[0,0,:,:]
     plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
     plt.ylabel('Input')
     plt.title("%s" % (plottitle))
     #
-    plt.subplot(3, 1, 2)
+    plt.subplot(4, 1, 2)
     plotdata = latentsval[0,0,:,:]
     plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
     plt.ylabel('Latents')
     #
-    plt.subplot(3, 1, 3)
+    plt.subplot(4, 1, 3)
     plotdata = prediction[0,0,:,:]
     plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
     plt.ylabel('Output')
     #
+    plt.subplot(4, 1, 4)
+    plotdata = reconstructed
+    plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
+    plt.ylabel('Output')
+    # #
     pdf.savefig()
     plt.close()
     ##
@@ -239,9 +253,9 @@ if True:
             lossreadout = loss / len(training_data)
             infostring = "Epoch %d/%d: Loss %g" % (epoch, numepochs, lossreadout)
             print infostring
-            # plot_probedata('progress', plottitle="progress (%s)" % infostring)
+            plot_probedata('progress', plottitle="progress (%s)" % infostring)
 
-    # plot_probedata('trained', plottitle="trained (%d epochs; Loss %g)" % (numepochs, lossreadout))
+    plot_probedata('trained', plottitle="trained (%d epochs; Loss %g)" % (numepochs, lossreadout))
     # from datetime import datetime
     # np.savez('network_%s.npz' % datetime.now().strftime('%Y%m%d%H%M%S'), *lasagne.layers.get_all_param_values(network))
     # np.savez('latents_%s.npz' % datetime.now().strftime('%Y%m%d%H%M%S'), *lasagne.layers.get_all_param_values(latents))
