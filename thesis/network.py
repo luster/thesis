@@ -129,20 +129,27 @@ training_data, training_labels, noise_specgram, signal_specgram, x_noise, x_sign
 # TODO: wtf is going on with these relative imports???
 
 examplegram_startindex = 10000
-time_index = 10000
-samples = 44100
+time_startindex = audioframe_len * ((examplegram_startindex-1)/2 + 1)
+time_endindex = time_startindex + audioframe_len * (numtimebins/2 + 1) + 1
 
 plot_probedata_data = None
 def plot_probedata(outpostfix, plottitle=None):
     """Visualises the network behaviour.
     NOTE: currently accesses globals. Should really be passed in the network, filters etc"""
     global plot_probedata_data
+    sig = x_noise
+    gram = noise_specgram
+    phase = noise_phasegram
+
+    sig = x_signal
+    gram = signal_specgram
+    phase = signal_phasegram
 
     if plottitle==None:
         plottitle = outpostfix
 
     if np.shape(plot_probedata_data)==():
-        plot_probedata_data = np.array([[noise_specgram[:, examplegram_startindex:examplegram_startindex+numtimebins]]], dtype)
+        plot_probedata_data = np.array([[gram[:, examplegram_startindex:examplegram_startindex+numtimebins]]], dtype)
 
     test_prediction = lasagne.layers.get_output(network, deterministic=True, reconstruct=True)
     test_latents = lasagne.layers.get_output(latents, deterministic=True)
@@ -152,9 +159,12 @@ def plot_probedata(outpostfix, plottitle=None):
     latentsval = latents_fn(plot_probedata_data)
 
     from util import istft
-    reconstructed_stft = prediction * np.exp(1j*noise_phasegram[:, examplegram_startindex:examplegram_startindex+numtimebins])
+    reconstructed_stft = prediction * np.exp(1j*phase[:, examplegram_startindex:examplegram_startindex+numtimebins])
+    reconstructed = istft(np.squeeze(reconstructed_stft), x_noise)
+    original_stft = plot_probedata_data * np.exp(1j*phase[:, examplegram_startindex:examplegram_startindex+numtimebins])
+    original = istft(np.squeeze(original_stft), x_noise)
+    real_original = sig[time_startindex:time_endindex]
     # import ipdb; ipdb.set_trace()
-    reconstructed = istft(reconstructed_stft.reshape((reconstructed_stft.shape[2], reconstructed_stft.shape[3])), x_noise)
     if False:
         print("Probedata  has shape %s and meanabs %g" % ( plot_probedata_data.shape, np.mean(np.abs(plot_probedata_data ))))
         print("Latents has shape %s and meanabs %g" % (latentsval.shape, np.mean(np.abs(latentsval))))
@@ -183,7 +193,9 @@ def plot_probedata(outpostfix, plottitle=None):
     #
     plt.subplot(4, 1, 4)
     plotdata = reconstructed
-    plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
+    plt.plot(real_original, color='b')
+    plt.plot(original, color='k')
+    plt.plot(plotdata, color='r')#, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
     plt.ylabel('Output')
     # #
     pdf.savefig()
@@ -217,7 +229,7 @@ def plot_probedata(outpostfix, plottitle=None):
     ##
     pdf.close()
 
-# plot_probedata('init')
+plot_probedata('init')
 
 
 

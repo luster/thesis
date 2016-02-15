@@ -36,12 +36,12 @@ def istft(X, x_original):  #, fs, T, hop):
     hop is the the time between the start of consecutive frames, in seconds
     """
     fs = srate
-    T = len(x_original)
-    x = scipy.zeros(T*fs)
-    framesamp = X.shape[1]
+    # T = len(x_original)
+    x = scipy.zeros(audioframe_len*(numtimebins/2 + 1))
+    framesamp = audioframe_len
     hopsamp = audioframe_stride
     for n,i in enumerate(range(0, len(x)-framesamp, hopsamp)):
-        x[i:i+framesamp] += scipy.real(scipy.ifft(X[n]))
+        x[i:i+framesamp] += scipy.real(scipy.ifft(X[:, n], framesamp))
     return x
 
 
