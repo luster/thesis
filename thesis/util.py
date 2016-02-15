@@ -37,7 +37,7 @@ def istft(X, x_original):  #, fs, T, hop):
     """
     fs = srate
     # T = len(x_original)
-    x = scipy.zeros(audioframe_len*(numtimebins/2 + 1))
+    x = scipy.zeros(audioframe_len/2*(numtimebins + 1))
     framesamp = audioframe_len
     hopsamp = audioframe_stride
     for n,i in enumerate(range(0, len(x)-framesamp, hopsamp)):

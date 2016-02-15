@@ -59,3 +59,12 @@ target/
 # extra data
 data/gj
 data/gj_mono 
+
+# models
+*.npz
+
+# plots
+*.pdf
+
+# notes
+*.txt

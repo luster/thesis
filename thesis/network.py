@@ -129,8 +129,8 @@ training_data, training_labels, noise_specgram, signal_specgram, x_noise, x_sign
 # TODO: wtf is going on with these relative imports???
 
 examplegram_startindex = 10000
-time_startindex = audioframe_len * ((examplegram_startindex-1)/2 + 1)
-time_endindex = time_startindex + audioframe_len * (numtimebins/2 + 1) + 1
+time_startindex = audioframe_len/2 * (examplegram_startindex + 1) - audioframe_len/2
+time_endindex = time_startindex + audioframe_len/2 * (numtimebins + 1) + 1
 
 plot_probedata_data = None
 def plot_probedata(outpostfix, plottitle=None):
