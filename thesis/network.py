@@ -53,22 +53,18 @@ soft_output_var = T.matrix('y')
 idx = T.iscalar()  # index to a [mini]batch
 
 
-# network = lasagne.layers.InputLayer((None, 1, specbinnum, numtimebins), input_var)
 network = lasagne.layers.InputLayer((None, 1, specbinnum, numtimebins), input_var)
 # dims: minibatchsize x channels x rows x cols
-
+print "shape after input layer: %s" % str(network.output_shape)
 # normalize layer
 #  -- note that we deliberately normalise the input but do not undo that at the output.
 #  -- note that the normalisation params are not set by the training procedure, they need to be set before training begins.
 network = NormalisationLayer(network, specbinnum)
 normlayer = network  # need to keep reference to set its parameters
-
 # convolutional layer
-# network, filters_enc = custom_convlayer(network, in_num_chans=specbinnum, out_num_chans=numfilters)
-network, filters_enc = custom_convlayer(network, in_num_chans=specbinnum, out_num_chans=1)
-
+network, filters_enc = custom_convlayer(network, in_num_chans=specbinnum, out_num_chans=numfilters)
+network, filters_enc = custom_convlayer(network, in_num_chans=numfilters, out_num_chans=1)
 network = lasagne.layers.NonlinearityLayer(network, nonlinearity=rectify)  # standard rectify since nonnegative target
-
 # maxpool layer
 #   NOTE: here we're using max-pooling, along the time axis only, and then
 #   using Lasagne's "InverseLayer" to undo the maxpooling in one-hot fashion.
@@ -79,9 +75,9 @@ if use_maxpool:
     mp_down_factor = maxpooling_downsample_factor
     network = lasagne.layers.MaxPool2DLayer(network, pool_size=(1,mp_down_factor), stride=(1,mp_down_factor))
     maxpool_layer = network  # need to keep reference
-
 # the "middle" of the autoencoder
 latents = network  # might want to inspect and/or regularize these too
+
 
 class ZeroOutForegroundLatentsLayer(lasagne.layers.Layer):
     def __init__(self, incoming, **kwargs):
@@ -98,15 +94,11 @@ class ZeroOutForegroundLatentsLayer(lasagne.layers.Layer):
 network = ZeroOutForegroundLatentsLayer(latents)
 
 # WANT latents.output_shape = (None, 1, 1, num_latents)
-
 # start to unwrap starting here
 if use_maxpool:
     network = lasagne.layers.InverseLayer(network, maxpool_layer)
-
-
-network, filters_dec = custom_convlayer(network, in_num_chans=1, out_num_chans=specbinnum)
-# reconstruct_network, filters_dec = custom_convlayer(reconstruct_network, in_num_chans=1, out_num_chans=specbinnum)
-# network, filters_dec = custom_convlayer(network, in_num_chans=numfilters, out_num_chans=specbinnum)
+network, filters_dec = custom_convlayer(network, in_num_chans=1, out_num_chans=numfilters)
+network, filters_dec = custom_convlayer(network, in_num_chans=numfilters, out_num_chans=specbinnum)
 
 # loss function, predictions
 prediction = lasagne.layers.get_output(network)
@@ -131,6 +123,11 @@ training_data, training_labels, noise_specgram, signal_specgram, x_noise, x_sign
 examplegram_startindex = 10000
 time_startindex = audioframe_len/2 * (examplegram_startindex + 1) - audioframe_len/2
 time_endindex = time_startindex + audioframe_len/2 * (numtimebins + 1) + 1
+
+
+def calculate_time_signal(magnitudegram, phasegram):
+    stft = magnitudegram * np.exp(1j * phasegram)
+    return istft(np.squeeze(stft), None)
 
 plot_probedata_data = None
 def plot_probedata(outpostfix, plottitle=None):
@@ -228,6 +225,17 @@ def plot_probedata(outpostfix, plottitle=None):
         # plt.close()
     ##
     pdf.close()
+
+    if outpostfix == 'trained':
+        predicted_noisegram = predict_fn(np.array([[noise_specgram]]))
+        predicted_signalgram = predict_fn(np.array([[signal_specgram]]))
+        output_noise = calculate_time_signal(predicted_noisegram, noise_phasegram)
+        output_signal = calculate_time_signal(predicted_signalgram, signal_phasegram)
+        # save to wav
+        import scikits.audiolab
+        scikits.audiolab.wavwrite(output_noise, 'out_noise.wav', fs=44100, enc='pcm16')
+        scikits.audiolab.wavwrite(output_signal, 'out_signal.wav', fs=44100, enc='pcm16')
+
 
 plot_probedata('init')
 

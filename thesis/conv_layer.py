@@ -19,8 +19,9 @@ def custom_convlayer(network, in_num_chans, out_num_chans):
     print("shape after pad layer: %s" % str(network.output_shape))
     network = lasagne.layers.Conv2DLayer(network, out_num_chans,
         (in_num_chans, featframe_len), stride=(1,1), pad=0,
-        nonlinearity=very_leaky_rectify, W=lasagne.init.Orthogonal()) # we pad "manually" in order to do it in one dimension only
+        nonlinearity=very_leaky_rectify, W=lasagne.init.Orthogonal(), b=None) # we pad "manually" in order to do it in one dimension only
     filters = network.W
+    # print "shape after conv layer: %s" % str(network.output_shape)
     network = lasagne.layers.ReshapeLayer(network, ([0], [2], [1], [3])) # reinterpret channels as rows
-    print("shape after conv layer: %s" % str(network.output_shape))
+    print("shape after reshape conv layer: %s" % str(network.output_shape))
     return network, filters

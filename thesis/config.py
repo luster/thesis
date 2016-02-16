@@ -14,7 +14,7 @@ if use_complex:
 else:
     dtype = theano.config.floatX
 
-training_data_size = 64
+training_data_size = 128
 numepochs = 4
 
 lambduh = 0.75  # lambda
@@ -31,7 +31,7 @@ n_noise_only_examples = int(noise_only_fraction * minibatch_size)
 # background = 0
 # foreground = 1
 
-fft_bins = 128
+fft_bins = 256
 audioframe_len = 512
 audioframe_stride = int(audioframe_len/2)
 specbinlow = 0
