@@ -14,8 +14,8 @@ if use_complex:
 else:
     dtype = theano.config.floatX
 
-training_data_size = 128
-numepochs = 4
+training_data_size = 256
+numepochs = 4096
 
 lambduh = 0.75  # lambda
 minibatch_size = 16
@@ -65,7 +65,7 @@ signal_files = glob(signal_pattern)
 
 use_one_file = True
 if use_one_file:
-    noise_files = noise_files[1]
-    signal_files = signal_files[1]
+    noise_files = noise_files[0]
+    signal_files = signal_files[0]
 
 use_maxpool = True

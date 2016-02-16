@@ -276,21 +276,20 @@ if True:
         allow_input_downcast=True,
     )
 
+    from datetime import datetime
+    dt = datetime.now().strftime('%Y%m%d%H%M')
     for epoch in range(numepochs):
         loss = 0
         indx.set_value(0)
         for batch_idx in range(training_data_size):
             loss += train_fn()
+        lossreadout = loss / len(training_data)
+        infostring = "Epoch %d/%d: Loss %g" % (epoch, numepochs, lossreadout)
+        print infostring
         if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch):
-            lossreadout = loss / len(training_data)
-            infostring = "Epoch %d/%d: Loss %g" % (epoch, numepochs, lossreadout)
-            print infostring
             plot_probedata('progress', plottitle="progress (%s)" % infostring)
+            np.savez('network_%s_epoch%s.npz' % (datetime.now().strftime('%Y%m%d%H%M%S'), epoch), *lasagne.layers.get_all_param_values(network))
+            np.savez('latents_%s_epoch%s.npz' % (datetime.now().strftime('%Y%m%d%H%M%S'), epoch), *lasagne.layers.get_all_param_values(latents))
 
     plot_probedata('trained', plottitle="trained (%d epochs; Loss %g)" % (numepochs, lossreadout))
-    from datetime import datetime
-    np.savez('network_%s.npz' % datetime.now().strftime('%Y%m%d%H%M%S'), *lasagne.layers.get_all_param_values(network))
-    np.savez('latents_%s.npz' % datetime.now().strftime('%Y%m%d%H%M%S'), *lasagne.layers.get_all_param_values(latents))
-
-
 
