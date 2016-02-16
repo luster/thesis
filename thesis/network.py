@@ -39,6 +39,8 @@ from dataset import build_dataset, training_data_size
 from norm_layer import NormalisationLayer
 from conv_layer import custom_convlayer
 import util
+from util import istft
+
 
 if use_complex:
     input_var = T.ctensor4('X')
@@ -155,7 +157,6 @@ def plot_probedata(outpostfix, plottitle=None):
     prediction = predict_fn(plot_probedata_data)
     latentsval = latents_fn(plot_probedata_data)
 
-    from util import istft
     reconstructed_stft = prediction * np.exp(1j*phase[:, examplegram_startindex:examplegram_startindex+numtimebins])
     reconstructed = istft(np.squeeze(reconstructed_stft), x_noise)
     original_stft = plot_probedata_data * np.exp(1j*phase[:, examplegram_startindex:examplegram_startindex+numtimebins])
@@ -227,10 +228,21 @@ def plot_probedata(outpostfix, plottitle=None):
     pdf.close()
 
     if outpostfix == 'trained':
-        predicted_noisegram = predict_fn(np.array([[noise_specgram]]))
-        predicted_signalgram = predict_fn(np.array([[signal_specgram]]))
-        output_noise = calculate_time_signal(predicted_noisegram, noise_phasegram)
-        output_signal = calculate_time_signal(predicted_signalgram, signal_phasegram)
+        gram = noise_specgram
+        phase = noise_phasegram
+        noise_specgram_ = np.array([[gram[:, examplegram_startindex:examplegram_startindex+numtimebins]]], dtype)
+        predicted_noisegram = predict_fn(noise_specgram_)
+        noise_phasegram_ = phase[:, examplegram_startindex:examplegram_startindex+numtimebins]
+
+        gram = signal_specgram
+        phase = signal_phasegram
+        signal_specgram_ = np.array([[gram[:, examplegram_startindex:examplegram_startindex+numtimebins]]], dtype)
+        predicted_signalgram = predict_fn(signal_specgram_)
+        signal_phasegram_ = phase[:, examplegram_startindex:examplegram_startindex+numtimebins]
+
+
+        output_noise = calculate_time_signal(predicted_noisegram, noise_phasegram_)
+        output_signal = calculate_time_signal(predicted_signalgram, signal_phasegram_)
         # save to wav
         import scikits.audiolab
         scikits.audiolab.wavwrite(output_noise, 'out_noise.wav', fs=44100, enc='pcm16')
