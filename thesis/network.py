@@ -115,7 +115,7 @@ loss = lasagne.objectives.squared_error(prediction, input_var)
 sizeof_C = list(lasagne.layers.get_output_shape(latents))
 sizeof_C[0] = minibatch_size
 C = np.zeros(sizeof_C)
-C[0:n_noise_only_examples, :, :, n_background_latents+1:] = 1
+C[0:n_noise_only_examples, :, n_background_latents+1:, :] = 1
 C_mat = theano.shared(np.asarray(C, dtype=dtype), borrow=False)
 mean_C = theano.shared(C.mean(), borrow=False)
 
@@ -127,7 +127,7 @@ if use_complex:
 # build dataset
 training_data, training_labels, noise_specgram, signal_specgram, x_noise, x_signal, noise_phasegram, signal_phasegram = build_dataset(use_stft=use_complex, use_simpler_data=use_simpler_data)
 
-examplegram_startindex = 100
+examplegram_startindex = 105
 time_startindex = audioframe_len/2 * (examplegram_startindex + 1) - audioframe_len/2
 time_endindex = time_startindex + audioframe_len/2 * (numtimebins + 1) + 1
 
@@ -299,7 +299,7 @@ if __name__ == '__main__':
         print infostring
         if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch):
             plot_probedata('progress', plottitle="progress (%s)" % infostring, compute_time_signal=cts)
-            np.savez('network_%s_epoch%s.npz' % (dt, epoch), *lasagne.layers.get_all_param_values(network))
-            np.savez('latents_%s_epoch%s.npz' % (dt, epoch), *lasagne.layers.get_all_param_values(latents))
+            np.savez('npz/network_%s_epoch%s.npz' % (dt, epoch), *lasagne.layers.get_all_param_values(network))
+            np.savez('npz/latents_%s_epoch%s.npz' % (dt, epoch), *lasagne.layers.get_all_param_values(latents))
 
     plot_probedata('trained', plottitle="trained (%d epochs; Loss %g, )" % (numepochs, lossreadout), compute_time_signal=cts)

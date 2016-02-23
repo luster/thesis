@@ -14,8 +14,8 @@ if use_complex:
 else:
     dtype = theano.config.floatX
 
-training_data_size = 500
-numepochs = 32
+training_data_size = 1024
+numepochs = 1024
 
 lambduh = 0.75  # lambda
 minibatch_size = 16
