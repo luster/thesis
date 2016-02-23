@@ -70,3 +70,6 @@ data/gj_mono
 *.txt
 
 *.wav
+*.mp3
+*.aup
+*.au

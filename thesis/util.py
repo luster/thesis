@@ -51,7 +51,7 @@ def standard_specgram(signal):#, audioframe_len, audioframe_stride, specbinlow, 
         NFFT=audioframe_len,
         noverlap=audioframe_len - audioframe_stride,
         window=np.hamming(audioframe_len),
-        mode='magnitude')[0][specbinlow:specbinlow + specbinnum, :], dtype=float32), np.array(
+        mode='psd')[0][specbinlow:specbinlow + specbinnum, :], dtype=float32), np.array(
             specgram(signal, NFFT=audioframe_len, noverlap=audioframe_len - audioframe_stride,
                 window=np.hamming(audioframe_len), mode='phase')[0][specbinlow:specbinlow + specbinnum, :], dtype=float32)
 

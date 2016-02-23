@@ -5,16 +5,20 @@
 #  * It's a convolutional net but only along the time axis; along the frequency axis it's fully-connected.
 from __future__ import division
 
+import scikits.audiolab
 import numpy as np
+
+from datetime import datetime
 
 import lasagne
 import theano
 import theano.tensor as T
-#import downhill
+
 from lasagne.nonlinearities import leaky_rectify
 from lasagne.nonlinearities import rectify
 from lasagne.nonlinearities import very_leaky_rectify
-from numpy import float32, complex64
+from numpy import complex64
+from numpy import float32
 
 try:
     from lasagne.layers import InverseLayer as _
@@ -34,11 +38,13 @@ from matplotlib.backends.backend_pdf import PdfPages
 plt.rcParams.update({'font.size': 6})
 
 from config import *
-from dataset import build_dataset, training_data_size
+from dataset import build_dataset
+from dataset import training_data_size
 # from plot import plot_probedata
-from norm_layer import NormalisationLayer
-from conv_layer import custom_convlayer
 import util
+
+from conv_layer import custom_convlayer
+from norm_layer import NormalisationLayer
 from util import istft
 
 
@@ -65,7 +71,6 @@ network = NormalisationLayer(network, specbinnum)
 normlayer = network  # need to keep reference to set its parameters
 # convolutional layer
 network, filters_enc = custom_convlayer(network, in_num_chans=specbinnum, out_num_chans=numfilters)
-network, filters_enc = custom_convlayer(network, in_num_chans=numfilters, out_num_chans=1)
 network = lasagne.layers.NonlinearityLayer(network, nonlinearity=rectify)  # standard rectify since nonnegative target
 # maxpool layer
 #   NOTE: here we're using max-pooling, along the time axis only, and then
@@ -75,17 +80,20 @@ network = lasagne.layers.NonlinearityLayer(network, nonlinearity=rectify)  # sta
 #   double magnitude. It's OK here since we're not overlapping the windows
 if use_maxpool:
     mp_down_factor = maxpooling_downsample_factor
-    network = lasagne.layers.MaxPool2DLayer(network, pool_size=(1,mp_down_factor), stride=(1,mp_down_factor))
+    network = lasagne.layers.MaxPool2DLayer(network, pool_size=(1, mp_down_factor), stride=(1, mp_down_factor))
     maxpool_layer = network  # need to keep reference
 # the "middle" of the autoencoder
 latents = network  # might want to inspect and/or regularize these too
+print lasagne.layers.get_output_shape(latents)
 
 
 class ZeroOutForegroundLatentsLayer(lasagne.layers.Layer):
     def __init__(self, incoming, **kwargs):
         super(ZeroOutForegroundLatentsLayer, self).__init__(incoming, **kwargs)
-        mask = np.ones((1, 1, 1, numfilters))
-        mask[:, :, :, 0:n_background_latents] = 0
+        sizeof_C = list(lasagne.layers.get_output_shape(latents))
+        mask = np.ones((1, 1, numfilters, numtimebins/mp_down_factor))
+        mask[:, :, 0:n_background_latents, :] = 0
+        print np.squeeze(mask)
         self.mask = theano.shared(mask, borrow=False)
 
     def get_output_for(self, input_data, reconstruct=False, **kwargs):
@@ -99,7 +107,6 @@ network = ZeroOutForegroundLatentsLayer(latents)
 # start to unwrap starting here
 if use_maxpool:
     network = lasagne.layers.InverseLayer(network, maxpool_layer)
-network, filters_dec = custom_convlayer(network, in_num_chans=1, out_num_chans=numfilters)
 network, filters_dec = custom_convlayer(network, in_num_chans=numfilters, out_num_chans=specbinnum)
 
 # loss function, predictions
@@ -118,11 +125,9 @@ if use_complex:
     loss = abs(loss)
 
 # build dataset
-training_data, training_labels, noise_specgram, signal_specgram, x_noise, x_signal, noise_phasegram, signal_phasegram = build_dataset(use_stft=use_complex)
+training_data, training_labels, noise_specgram, signal_specgram, x_noise, x_signal, noise_phasegram, signal_phasegram = build_dataset(use_stft=use_complex, use_simpler_data=use_simpler_data)
 
-# TODO: wtf is going on with these relative imports???
-
-examplegram_startindex = 10000
+examplegram_startindex = 100
 time_startindex = audioframe_len/2 * (examplegram_startindex + 1) - audioframe_len/2
 time_endindex = time_startindex + audioframe_len/2 * (numtimebins + 1) + 1
 
@@ -131,8 +136,9 @@ def calculate_time_signal(magnitudegram, phasegram):
     stft = magnitudegram * np.exp(1j * phasegram)
     return istft(np.squeeze(stft), None)
 
+
 plot_probedata_data = None
-def plot_probedata(outpostfix, plottitle=None):
+def plot_probedata(outpostfix, plottitle=None, compute_time_signal=True):
     """Visualises the network behaviour.
     NOTE: currently accesses globals. Should really be passed in the network, filters etc"""
     global plot_probedata_data
@@ -157,12 +163,15 @@ def plot_probedata(outpostfix, plottitle=None):
     prediction = predict_fn(plot_probedata_data)
     latentsval = latents_fn(plot_probedata_data)
 
-    reconstructed_stft = prediction * np.exp(1j*phase[:, examplegram_startindex:examplegram_startindex+numtimebins])
-    reconstructed = istft(np.squeeze(reconstructed_stft), x_noise)
-    original_stft = plot_probedata_data * np.exp(1j*phase[:, examplegram_startindex:examplegram_startindex+numtimebins])
-    original = istft(np.squeeze(original_stft), x_noise)
-    real_original = sig[time_startindex:time_endindex]
-    # import ipdb; ipdb.set_trace()
+    n_plots = 3
+    if compute_time_signal:
+        n_plots = 4
+        reconstructed_stft = prediction * np.exp(1j*phase[:, examplegram_startindex : examplegram_startindex + numtimebins])
+        reconstructed = istft(np.squeeze(reconstructed_stft), x_noise)
+        original_stft = plot_probedata_data * np.exp(1j * phase[:, examplegram_startindex : examplegram_startindex + numtimebins])
+        original = istft(np.squeeze(original_stft), x_noise)
+        real_original = sig[time_startindex : time_endindex]
+
     if False:
         print("Probedata  has shape %s and meanabs %g" % ( plot_probedata_data.shape, np.mean(np.abs(plot_probedata_data ))))
         print("Latents has shape %s and meanabs %g" % (latentsval.shape, np.mean(np.abs(latentsval))))
@@ -173,87 +182,90 @@ def plot_probedata(outpostfix, plottitle=None):
     pdf = PdfPages('pdf/autoenc_probe_%s.pdf' % outpostfix)
     plt.figure(frameon=False)
     #
-    plt.subplot(4, 1, 1)
+    plt.subplot(n_plots, 1, 1)
     plotdata = plot_probedata_data[0,0,:,:]
     plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
     plt.ylabel('Input')
     plt.title("%s" % (plottitle))
     #
-    plt.subplot(4, 1, 2)
+    plt.subplot(n_plots, 1, 2)
     plotdata = latentsval[0,0,:,:]
     plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
     plt.ylabel('Latents')
     #
-    plt.subplot(4, 1, 3)
+    plt.subplot(n_plots, 1, 3)
     plotdata = prediction[0,0,:,:]
     plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
     plt.ylabel('Output')
     #
-    plt.subplot(4, 1, 4)
-    plotdata = reconstructed
-    plt.plot(real_original, color='b')
-    plt.plot(original, color='k')
-    plt.plot(plotdata, color='r')#, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
-    plt.ylabel('Output')
-    # #
     pdf.savefig()
     plt.close()
-    ##
+    # ##
     # for filtvar, filtlbl, isenc in [
-    #     # (filters_enc, 'encoding', True),
+    #     (filters_enc, 'encoding', True),
     #     (filters_dec, 'decoding', False),
     #         ]:
     #     plt.figure(frameon=False)
     #     vals = filtvar.get_value()
-    #     #print("        %s filters have shape %s" % (filtlbl, vals.shape))
     #     vlim = np.max(np.abs(vals))
     #     for whichfilt in range(numfilters):
     #         plt.subplot(3, 8, whichfilt+1)
     #         # NOTE: for encoding/decoding filters, we grab the "slice" of interest from the tensor in different ways: different axes, and flipped.
     #         if isenc:
-    #             plotdata = vals[numfilters-(1+whichfilt),0,::-1,::-1]
+    #             plotdata = vals[numfilters - (1 + whichfilt), 0, ::-1, ::-1]
     #         else:
-    #             plotdata = vals[:,0,whichfilt,:]
+    #             plotdata = vals[:, 0, whichfilt, :]
 
     #         plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-vlim, vmax=vlim)
     #         plt.xticks([])
-    #         if whichfilt==0:
+    #         if whichfilt == 0:
     #             plt.title("%s filters (%s)" % (filtlbl, outpostfix))
     #         else:
     #             plt.yticks([])
+    #     pdf.savefig()
+    #     plt.close()
 
-        # pdf.savefig()
-        # plt.close()
+    if compute_time_signal:
+        plt.subplot(n_plots, 1, 4)
+        plotdata = reconstructed
+        plt.plot(real_original, color='b')
+        plt.plot(original, color='k')
+        plt.plot(plotdata, color='r')
+        plt.ylabel('Output')
+    #
+    # plt.close()
     ##
     pdf.close()
 
-    if outpostfix == 'trained':
+    if outpostfix == 'trained' and compute_time_signal:
         gram = noise_specgram
         phase = noise_phasegram
-        noise_specgram_ = np.array([[gram[:, examplegram_startindex:examplegram_startindex+numtimebins]]], dtype)
+        noise_specgram_ = np.array([[gram[:, examplegram_startindex : examplegram_startindex + numtimebins]]], dtype)
         predicted_noisegram = predict_fn(noise_specgram_)
-        noise_phasegram_ = phase[:, examplegram_startindex:examplegram_startindex+numtimebins]
+        noise_phasegram_ = phase[:, examplegram_startindex : examplegram_startindex + numtimebins]
 
         gram = signal_specgram
         phase = signal_phasegram
-        signal_specgram_ = np.array([[gram[:, examplegram_startindex:examplegram_startindex+numtimebins]]], dtype)
+        signal_specgram_ = np.array([[gram[:, examplegram_startindex : examplegram_startindex + numtimebins]]], dtype)
         predicted_signalgram = predict_fn(signal_specgram_)
-        signal_phasegram_ = phase[:, examplegram_startindex:examplegram_startindex+numtimebins]
-
+        signal_phasegram_ = phase[:, examplegram_startindex : examplegram_startindex + numtimebins]
 
         output_noise = calculate_time_signal(predicted_noisegram, noise_phasegram_)
         output_signal = calculate_time_signal(predicted_signalgram, signal_phasegram_)
         # save to wav
-        import scikits.audiolab
         scikits.audiolab.wavwrite(output_noise, 'out_noise.wav', fs=44100, enc='pcm16')
         scikits.audiolab.wavwrite(output_signal, 'out_signal.wav', fs=44100, enc='pcm16')
+    return
 
 
-plot_probedata('init')
+if __name__ == '__main__':
+    # import argparse
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--')
 
+    cts = False
+    plot_probedata('init', compute_time_signal=cts)
 
-
-if True:
     # reshape data because of 3rd dim needing to be 1
     training_labels_shared = theano.shared(training_labels.reshape(training_labels.shape[0], training_labels.shape[1], 1), borrow=False)
 
@@ -276,7 +288,6 @@ if True:
         allow_input_downcast=True,
     )
 
-    from datetime import datetime
     dt = datetime.now().strftime('%Y%m%d%H%M')
     for epoch in range(numepochs):
         loss = 0
@@ -287,9 +298,8 @@ if True:
         infostring = "Epoch %d/%d: Loss %g" % (epoch, numepochs, lossreadout)
         print infostring
         if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch):
-            plot_probedata('progress', plottitle="progress (%s)" % infostring)
-            np.savez('network_%s_epoch%s.npz' % (datetime.now().strftime('%Y%m%d%H%M%S'), epoch), *lasagne.layers.get_all_param_values(network))
-            np.savez('latents_%s_epoch%s.npz' % (datetime.now().strftime('%Y%m%d%H%M%S'), epoch), *lasagne.layers.get_all_param_values(latents))
+            plot_probedata('progress', plottitle="progress (%s)" % infostring, compute_time_signal=cts)
+            np.savez('network_%s_epoch%s.npz' % (dt, epoch), *lasagne.layers.get_all_param_values(network))
+            np.savez('latents_%s_epoch%s.npz' % (dt, epoch), *lasagne.layers.get_all_param_values(latents))
 
-    plot_probedata('trained', plottitle="trained (%d epochs; Loss %g)" % (numepochs, lossreadout))
-
+    plot_probedata('trained', plottitle="trained (%d epochs; Loss %g, )" % (numepochs, lossreadout), compute_time_signal=cts)

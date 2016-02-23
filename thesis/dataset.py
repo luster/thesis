@@ -1,5 +1,6 @@
 import os
 
+from random import randint, uniform
 from glob import glob
 
 import numpy as np
@@ -37,12 +38,13 @@ background = 1.
 foreground = 0.
 
 
-def create_simple_data():
-    # create a sum of sine waves, add bg noise
-    return None, None
+def create_simpler_data():
+    x_signal = load_soundfile(signal_files, 0)
+    x_noise = load_soundfile(noise_files, 0)
+    return x_signal, x_noise
 
 
-def build_dataset(use_stft=False, use_simple_data=False):
+def build_dataset(use_stft=False, use_simpler_data=False):
     if use_stft:
         # FIXME: this still doesn't work
         dtype = complex64
@@ -51,11 +53,11 @@ def build_dataset(use_stft=False, use_simple_data=False):
         dtype = theano.config.floatX
         freq_transform = standard_specgram
 
-    if use_one_file and not use_simple_data:
+    if use_one_file and not use_simpler_data:
         x_signal = load_soundfile(signal_files, 0)
         x_noise = load_soundfile(noise_files, 0)
     else:
-        x_signal, x_noise = create_simple_data()
+        x_signal, x_noise = create_simpler_data()
     noise_specgram, noise_phasegram = freq_transform(x_noise)
     signal_specgram, signal_phasegram = freq_transform(x_signal)
 
