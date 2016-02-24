@@ -14,8 +14,8 @@ if use_complex:
 else:
     dtype = theano.config.floatX
 
-training_data_size = 1024
-numepochs = 1024
+training_data_size = 768
+numepochs = 256
 
 lambduh = 0.75  # lambda
 minibatch_size = 16
@@ -33,16 +33,15 @@ fft_bins = 128
 audioframe_len = 512
 audioframe_stride = int(audioframe_len/2)
 specbinlow = 0
-# specbinnum = int(fft_bins/2.)
-specbinnum = fft_bins/4
-numtimebins = 512 # 128 # 48 # NOTE that this size needs really to be compatible with downsampling (maxpooling) steps if you use them.
+specbinnum = fft_bins
+numtimebins = 256 # 128 # 48 # NOTE that this size needs really to be compatible with downsampling (maxpooling) steps if you use them.
 
 specgram_timeframes = 512
 n_latents = 32
 n_background_latents = int(0.25 * n_latents)
 numfilters = 32
 conv_filter_length = 9  # time frames
-maxpooling_downsample_factor = 16
+maxpooling_downsample_factor = 8
 
 # train with AdaDelta to control SGD learning rates
 # no dropout

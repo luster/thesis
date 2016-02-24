@@ -11,7 +11,7 @@ from lasagne.nonlinearities import very_leaky_rectify
 
 from config import *
 
-featframe_len = 9  # ???
+featframe_len = conv_filter_length
 
 def custom_convlayer(network, in_num_chans, out_num_chans):
     # Applies our special padding and reshaping to do 1D convolution on 2D data

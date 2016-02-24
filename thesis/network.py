@@ -103,7 +103,6 @@ class ZeroOutForegroundLatentsLayer(lasagne.layers.Layer):
 
 network = ZeroOutForegroundLatentsLayer(latents)
 
-# WANT latents.output_shape = (None, 1, 1, num_latents)
 # start to unwrap starting here
 if use_maxpool:
     network = lasagne.layers.InverseLayer(network, maxpool_layer)
@@ -127,7 +126,7 @@ if use_complex:
 # build dataset
 training_data, training_labels, noise_specgram, signal_specgram, x_noise, x_signal, noise_phasegram, signal_phasegram = build_dataset(use_stft=use_complex, use_simpler_data=use_simpler_data)
 
-examplegram_startindex = 105
+examplegram_startindex = 99
 time_startindex = audioframe_len/2 * (examplegram_startindex + 1) - audioframe_len/2
 time_endindex = time_startindex + audioframe_len/2 * (numtimebins + 1) + 1
 
@@ -137,24 +136,27 @@ def calculate_time_signal(magnitudegram, phasegram):
     return istft(np.squeeze(stft), None)
 
 
-plot_probedata_data = None
-def plot_probedata(outpostfix, plottitle=None, compute_time_signal=True):
+# plot_probedata_data = None
+def plot_probedata(gram_name, outpostfix, plottitle=None, compute_time_signal=True):
     """Visualises the network behaviour.
     NOTE: currently accesses globals. Should really be passed in the network, filters etc"""
-    global plot_probedata_data
-    sig = x_noise
-    gram = noise_specgram
-    phase = noise_phasegram
-
-    sig = x_signal
-    gram = signal_specgram
-    phase = signal_phasegram
+    # global plot_probedata_data
+    if gram_name == 'noise':
+        sig = x_noise
+        gram = noise_specgram
+        phase = noise_phasegram
+    elif gram_name == 'signal':
+        sig = x_signal
+        gram = signal_specgram
+        phase = signal_phasegram
+    else:
+        raise Exception('invalid gram_name, %s' % gram)
 
     if plottitle==None:
         plottitle = outpostfix
 
-    if np.shape(plot_probedata_data)==():
-        plot_probedata_data = np.array([[gram[:, examplegram_startindex:examplegram_startindex+numtimebins]]], dtype)
+    # if np.shape(plot_probedata_data)==():
+    plot_probedata_data = np.array([[gram[:, examplegram_startindex:examplegram_startindex+numtimebins]]], dtype)
 
     test_prediction = lasagne.layers.get_output(network, deterministic=True, reconstruct=True)
     test_latents = lasagne.layers.get_output(latents, deterministic=True)
@@ -167,9 +169,9 @@ def plot_probedata(outpostfix, plottitle=None, compute_time_signal=True):
     if compute_time_signal:
         n_plots = 4
         reconstructed_stft = prediction * np.exp(1j*phase[:, examplegram_startindex : examplegram_startindex + numtimebins])
-        reconstructed = istft(np.squeeze(reconstructed_stft), x_noise)
+        reconstructed = istft(np.squeeze(reconstructed_stft), sig)
         original_stft = plot_probedata_data * np.exp(1j * phase[:, examplegram_startindex : examplegram_startindex + numtimebins])
-        original = istft(np.squeeze(original_stft), x_noise)
+        original = istft(np.squeeze(original_stft), sig)
         real_original = sig[time_startindex : time_endindex]
 
     if False:
@@ -179,7 +181,7 @@ def plot_probedata(outpostfix, plottitle=None, compute_time_signal=True):
         print("Ratio %g" % (np.mean(np.abs(prediction)) / np.mean(np.abs(plot_probedata_data))))
 
     util.mkdir_p('pdf')
-    pdf = PdfPages('pdf/autoenc_probe_%s.pdf' % outpostfix)
+    pdf = PdfPages('pdf/%s_autoenc_probe_%s.pdf' % (gram_name, outpostfix))
     plt.figure(frameon=False)
     #
     plt.subplot(n_plots, 1, 1)
@@ -198,8 +200,6 @@ def plot_probedata(outpostfix, plottitle=None, compute_time_signal=True):
     plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
     plt.ylabel('Output')
     #
-    pdf.savefig()
-    plt.close()
     # ##
     # for filtvar, filtlbl, isenc in [
     #     (filters_enc, 'encoding', True),
@@ -228,33 +228,36 @@ def plot_probedata(outpostfix, plottitle=None, compute_time_signal=True):
     if compute_time_signal:
         plt.subplot(n_plots, 1, 4)
         plotdata = reconstructed
-        plt.plot(real_original, color='b')
-        plt.plot(original, color='k')
-        plt.plot(plotdata, color='r')
+        plt.plot(real_original, color='b', label='original signal')
+        plt.plot(original, color='k', label='test reconstructed')
+        plt.plot(plotdata, color='r', label='reconstructed')
         plt.ylabel('Output')
     #
     # plt.close()
     ##
+    pdf.savefig()
+    plt.close()
     pdf.close()
 
-    if outpostfix == 'trained' and compute_time_signal:
-        gram = noise_specgram
-        phase = noise_phasegram
-        noise_specgram_ = np.array([[gram[:, examplegram_startindex : examplegram_startindex + numtimebins]]], dtype)
-        predicted_noisegram = predict_fn(noise_specgram_)
-        noise_phasegram_ = phase[:, examplegram_startindex : examplegram_startindex + numtimebins]
+    # if outpostfix == 'trained' and compute_time_signal:
+    if compute_time_signal:
+        # gram = noise_specgram
+        # phase = noise_phasegram
+        specgram_ = np.array([[gram[:, examplegram_startindex : examplegram_startindex + numtimebins]]], dtype)
+        predicted_gram_ = predict_fn(specgram_)
+        phasegram_ = phase[:, examplegram_startindex : examplegram_startindex + numtimebins]
 
-        gram = signal_specgram
-        phase = signal_phasegram
-        signal_specgram_ = np.array([[gram[:, examplegram_startindex : examplegram_startindex + numtimebins]]], dtype)
-        predicted_signalgram = predict_fn(signal_specgram_)
-        signal_phasegram_ = phase[:, examplegram_startindex : examplegram_startindex + numtimebins]
+        # gram = signal_specgram
+        # phase = signal_phasegram
+        # signal_specgram_ = np.array([[gram[:, examplegram_startindex : examplegram_startindex + numtimebins]]], dtype)
+        # predicted_signalgram = predict_fn(signal_specgram_)
+        # signal_phasegram_ = phase[:, examplegram_startindex : examplegram_startindex + numtimebins]
 
-        output_noise = calculate_time_signal(predicted_noisegram, noise_phasegram_)
-        output_signal = calculate_time_signal(predicted_signalgram, signal_phasegram_)
+        output_ = calculate_time_signal(predicted_gram_, phasegram_)
+        # output_signal = calculate_time_signal(predicted_signalgram, signal_phasegram_)
         # save to wav
-        scikits.audiolab.wavwrite(output_noise, 'out_noise.wav', fs=44100, enc='pcm16')
-        scikits.audiolab.wavwrite(output_signal, 'out_signal.wav', fs=44100, enc='pcm16')
+        scikits.audiolab.wavwrite(output_, 'out_%s.wav' % gram_name, fs=srate, enc='pcm16')
+        # scikits.audiolab.wavwrite(output_signal, 'out_signal.wav', fs=srate, enc='pcm16')
     return
 
 
@@ -263,8 +266,9 @@ if __name__ == '__main__':
     # parser = argparse.ArgumentParser()
     # parser.add_argument('--')
 
-    cts = False
-    plot_probedata('init', compute_time_signal=cts)
+    cts = True
+    plot_probedata('noise', 'init', compute_time_signal=cts)
+    plot_probedata('signal', 'init', compute_time_signal=cts)
 
     # reshape data because of 3rd dim needing to be 1
     training_labels_shared = theano.shared(training_labels.reshape(training_labels.shape[0], training_labels.shape[1], 1), borrow=False)
@@ -298,7 +302,8 @@ if __name__ == '__main__':
         infostring = "Epoch %d/%d: Loss %g" % (epoch, numepochs, lossreadout)
         print infostring
         if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch):
-            plot_probedata('progress', plottitle="progress (%s)" % infostring, compute_time_signal=cts)
+            plot_probedata('noise', 'progress', plottitle="progress (%s)" % infostring, compute_time_signal=cts)
+            plot_probedata('signal', 'progress', plottitle="progress (%s)" % infostring, compute_time_signal=cts)
             np.savez('npz/network_%s_epoch%s.npz' % (dt, epoch), *lasagne.layers.get_all_param_values(network))
             np.savez('npz/latents_%s_epoch%s.npz' % (dt, epoch), *lasagne.layers.get_all_param_values(latents))
 
