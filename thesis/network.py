@@ -7,7 +7,7 @@ from __future__ import division
 
 import scikits.audiolab
 import numpy as np
-
+import sys
 from datetime import datetime
 
 import lasagne
@@ -228,9 +228,10 @@ def plot_probedata(gram_name, outpostfix, plottitle=None, compute_time_signal=Tr
     if compute_time_signal:
         plt.subplot(n_plots, 1, 4)
         plotdata = reconstructed
-        plt.plot(real_original, color='b', label='original signal')
-        plt.plot(original, color='k', label='test reconstructed')
+        # plt.plot(real_original, color='b', label='original signal')  # this signal is too big compared to the normalized ones
+        plt.plot(original, color='k', label='original')
         plt.plot(plotdata, color='r', label='reconstructed')
+        plt.legend()
         plt.ylabel('Output')
     #
     # plt.close()
@@ -241,23 +242,13 @@ def plot_probedata(gram_name, outpostfix, plottitle=None, compute_time_signal=Tr
 
     # if outpostfix == 'trained' and compute_time_signal:
     if compute_time_signal:
-        # gram = noise_specgram
-        # phase = noise_phasegram
         specgram_ = np.array([[gram[:, examplegram_startindex : examplegram_startindex + numtimebins]]], dtype)
         predicted_gram_ = predict_fn(specgram_)
         phasegram_ = phase[:, examplegram_startindex : examplegram_startindex + numtimebins]
 
-        # gram = signal_specgram
-        # phase = signal_phasegram
-        # signal_specgram_ = np.array([[gram[:, examplegram_startindex : examplegram_startindex + numtimebins]]], dtype)
-        # predicted_signalgram = predict_fn(signal_specgram_)
-        # signal_phasegram_ = phase[:, examplegram_startindex : examplegram_startindex + numtimebins]
-
         output_ = calculate_time_signal(predicted_gram_, phasegram_)
-        # output_signal = calculate_time_signal(predicted_signalgram, signal_phasegram_)
         # save to wav
-        scikits.audiolab.wavwrite(output_, 'out_%s.wav' % gram_name, fs=srate, enc='pcm16')
-        # scikits.audiolab.wavwrite(output_signal, 'out_signal.wav', fs=srate, enc='pcm16')
+        scikits.audiolab.wavwrite(output_, 'wav/out_%s.wav' % gram_name, fs=srate, enc='pcm16')
     return
 
 
@@ -281,7 +272,7 @@ if __name__ == '__main__':
 
     # training
     params = lasagne.layers.get_all_params(network, trainable=True)
-    updates = lasagne.updates.adadelta(loss, params, learning_rate=0.01, rho=0.5, epsilon=1e-6)
+    updates = lasagne.updates.adadelta(loss, params, learning_rate=1.0, rho=0.95, epsilon=1e-6)
     updates[indx] = indx + 1
 
     train_fn = theano.function([], loss, updates=updates,
@@ -301,7 +292,7 @@ if __name__ == '__main__':
         lossreadout = loss / len(training_data)
         infostring = "Epoch %d/%d: Loss %g" % (epoch, numepochs, lossreadout)
         print infostring
-        if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch):
+        if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch) or epoch % 50 == 0:
             plot_probedata('noise', 'progress', plottitle="progress (%s)" % infostring, compute_time_signal=cts)
             plot_probedata('signal', 'progress', plottitle="progress (%s)" % infostring, compute_time_signal=cts)
             np.savez('npz/network_%s_epoch%s.npz' % (dt, epoch), *lasagne.layers.get_all_param_values(network))
