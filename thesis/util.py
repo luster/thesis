@@ -13,6 +13,12 @@ from matplotlib.mlab import specgram, phase_spectrum
 
 from config import *
 
+
+def calculate_time_signal(magnitudegram, phasegram):
+    stft = magnitudegram * np.exp(1j * phasegram)
+    return istft(np.squeeze(stft), None)
+
+
 # Originally from http://stackoverflow.com/a/6891772/125507
 def stft(x):  # fs, framesz, hop):
     """x is the time-domain signal
@@ -23,10 +29,10 @@ def stft(x):  # fs, framesz, hop):
     framesamp = audioframe_len
     hopsamp = audioframe_stride
     w = scipy.hamming(framesamp)
-    X = np.array([scipy.fft(w*x[i:i+framesamp], numtimebins)
+    X = np.array([scipy.fft(w*x[i:i+framesamp], fft_bins)
                      for i in range(0, len(x)-framesamp, hopsamp)], dtype=complex64)
     shape = X.shape
-    return X.reshape((1, shape[0], shape[1])), None
+    return np.abs(X), np.angle(X)
 
 
 def istft(X, x_original):  #, fs, T, hop):
@@ -37,9 +43,11 @@ def istft(X, x_original):  #, fs, T, hop):
     """
     fs = srate
     # T = len(x_original)
-    x = scipy.zeros(audioframe_len/2*(numtimebins + 1))
+    # x = scipy.zeros(audioframe_len/2*(numtimebins + 1))
+    x = scipy.zeros(audioframe_len/2*(X.shape[1] + 1))
     framesamp = audioframe_len
     hopsamp = audioframe_stride
+    w = scipy.hamming(framesamp)
     for n,i in enumerate(range(0, len(x)-framesamp, hopsamp)):
         x[i:i+framesamp] += scipy.real(scipy.ifft(X[:, n], framesamp))
     return x

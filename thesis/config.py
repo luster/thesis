@@ -24,24 +24,24 @@ n_freq_bins = 32
 n_iterations = 10**6
 noise_only_fraction = 0.25
 
-srate = 22050
-wavdownsample = 2
+srate = 44100
+wavdownsample = 1
 
 n_noise_only_examples = int(noise_only_fraction * minibatch_size)
 
-fft_bins = 128
+fft_bins = 512
 audioframe_len = 512
 audioframe_stride = int(audioframe_len/2)
 specbinlow = 0
 specbinnum = fft_bins
-numtimebins = 256 # 128 # 48 # NOTE that this size needs really to be compatible with downsampling (maxpooling) steps if you use them.
+numtimebins = 512 # 128 # 48 # NOTE that this size needs really to be compatible with downsampling (maxpooling) steps if you use them.
 
 specgram_timeframes = 512
 n_latents = 32
 n_background_latents = int(0.25 * n_latents)
 numfilters = 32
 conv_filter_length = 9  # time frames
-maxpooling_downsample_factor = 8
+maxpooling_downsample_factor = 16
 
 # train with AdaDelta to control SGD learning rates
 # no dropout
