@@ -29,8 +29,8 @@ wavdownsample = 1
 
 n_noise_only_examples = int(noise_only_fraction * minibatch_size)
 
-fft_bins = 512
-audioframe_len = 512
+fft_bins = 2048
+audioframe_len = 2048
 audioframe_stride = int(audioframe_len/2)
 specbinlow = 0
 specbinnum = fft_bins

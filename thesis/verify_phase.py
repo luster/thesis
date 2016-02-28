@@ -49,6 +49,8 @@ def save_sound(loosely_snr):
     baseline_mse = mean_squared_error(sig, out_shouldnt_be_questionable)
     print 'baseline mse: ', baseline_mse
     print 'mse: ', mean_squared_error(sig, out_questionable)
+    print 'snr: ', 1./loosely_snr**2
+    print 'snr: ', 10*np.log10(1./loosely_snr**2), ' dB'
 
     # save files to wav
     scikits.audiolab.wavwrite(out_questionable, 'out_%s.wav' % 'questionable', fs=srate, enc='pcm16')
@@ -79,9 +81,9 @@ def generate_plot(snrs, axis_func=plt.plot):
         print 'snr: ', snr, ' mse: ', mse
         mses.append(mse)
     plt.figure()
-    xaxis = 20. * np.log10(-1 * snrs)
-    axis_func(snrs, mses)
-    axis_func(snrs, baseline_mse*np.ones(snrs.shape))
+    xaxis = -20. * np.log10(snrs)
+    axis_func(xaxis, mses)
+    axis_func(xaxis, baseline_mse*np.ones(snrs.shape))
     plt.xlabel('SNR (dB)')
     plt.ylabel('MSE')
     plt.title('MSE of Noisy Phase Signal w.r.t. Clean Phase Signal Reconstruction')
@@ -91,6 +93,6 @@ def generate_plot(snrs, axis_func=plt.plot):
 if __name__ == '__main__':
     import sys
     save_sound(float(sys.argv[1]))
-    # generate_plot(np.logspace(0,5)*0.01, plt.loglog)
+    # generate_plot(np.logspace(0,4,25)*0.01, plt.semilogy)
 
 
