@@ -298,4 +298,5 @@ if __name__ == '__main__':
             np.savez('npz/network_%s_epoch%s.npz' % (dt, epoch), *lasagne.layers.get_all_param_values(network))
             np.savez('npz/latents_%s_epoch%s.npz' % (dt, epoch), *lasagne.layers.get_all_param_values(latents))
 
-    plot_probedata('trained', plottitle="trained (%d epochs; Loss %g, )" % (numepochs, lossreadout), compute_time_signal=cts)
+    plot_probedata('noise', 'trained', plottitle="trained (%d epochs; Loss %g, )" % (numepochs, lossreadout), compute_time_signal=cts)
+    plot_probedata('signal', 'trained', plottitle="trained (%d epochs; Loss %g, )" % (numepochs, lossreadout), compute_time_signal=cts)

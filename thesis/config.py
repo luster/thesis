@@ -14,7 +14,7 @@ if use_complex:
 else:
     dtype = theano.config.floatX
 
-training_data_size = 1024
+training_data_size = 64
 numepochs = 768
 
 lambduh = 0.75  # lambda
