@@ -90,8 +90,10 @@ print lasagne.layers.get_output_shape(latents)
 class ZeroOutForegroundLatentsLayer(lasagne.layers.Layer):
     def __init__(self, incoming, **kwargs):
         super(ZeroOutForegroundLatentsLayer, self).__init__(incoming, **kwargs)
-        sizeof_C = list(lasagne.layers.get_output_shape(latents))
-        mask = np.ones((1, 1, numfilters, numtimebins/mp_down_factor))
+        if use_maxpool:
+            mask = np.ones((1, 1, numfilters, numtimebins/mp_down_factor))
+        else:
+            mask = np.ones((1, 1, numfilters, numtimebins))
         mask[:, :, 0:n_background_latents, :] = 0
         print np.squeeze(mask)
         self.mask = theano.shared(mask, borrow=False)
@@ -124,7 +126,9 @@ if use_complex:
     loss = abs(loss)
 
 # build dataset
-training_data, training_labels, noise_specgram, signal_specgram, x_noise, x_signal, noise_phasegram, signal_phasegram = build_dataset(use_stft=use_complex, use_simpler_data=use_simpler_data)
+training_data, training_labels, noise_specgram, signal_specgram, \
+x_noise, x_signal, noise_phasegram, signal_phasegram = build_dataset(
+    use_stft=use_complex, use_simpler_data=use_simpler_data)
 
 examplegram_startindex = 99
 time_startindex = audioframe_len/2 * (examplegram_startindex + 1) - audioframe_len/2

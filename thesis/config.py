@@ -15,7 +15,7 @@ else:
     dtype = theano.config.floatX
 
 training_data_size = 64
-numepochs = 768
+numepochs = 32
 
 lambduh = 0.75  # lambda
 minibatch_size = 16
@@ -29,8 +29,8 @@ wavdownsample = 1
 
 n_noise_only_examples = int(noise_only_fraction * minibatch_size)
 
-fft_bins = 2048
-audioframe_len = 2048
+fft_bins = 128
+audioframe_len = 512
 audioframe_stride = int(audioframe_len/2)
 specbinlow = 0
 specbinnum = fft_bins
@@ -73,4 +73,4 @@ if use_simpler_data:
     signal_files = glob(os.path.join(data_folder, sig_file))[0]
     print noise_files, signal_files
 
-use_maxpool = True
+use_maxpool = False
