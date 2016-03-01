@@ -276,7 +276,7 @@ if __name__ == '__main__':
 
     # training
     params = lasagne.layers.get_all_params(network, trainable=True)
-    updates = lasagne.updates.adadelta(loss, params, learning_rate=1.0, rho=0.95, epsilon=1e-6)
+    updates = lasagne.updates.adadelta(loss, params, learning_rate=0.01, rho=0.4, epsilon=1e-6)
     updates[indx] = indx + 1
 
     train_fn = theano.function([], loss, updates=updates,

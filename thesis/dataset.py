@@ -39,12 +39,12 @@ foreground = 0.
 
 
 def create_simpler_data():
-    x_signal = load_soundfile(signal_files, 0)
-    x_noise = load_soundfile(noise_files, 0)
+    x_signal = load_soundfile(signal_files, 0, 10)
+    x_noise = load_soundfile(noise_files, 0, 10)
     return x_signal, x_noise
 
 
-def build_dataset(use_stft=False, use_simpler_data=False):
+def build_dataset(use_stft=False, use_simpler_data=False, k=0.5):
     if use_stft:
         # FIXME: this still doesn't work
         dtype = complex64
@@ -58,6 +58,9 @@ def build_dataset(use_stft=False, use_simpler_data=False):
         x_noise = load_soundfile(noise_files, 0)
     else:
         x_signal, x_noise = create_simpler_data()
+        x_clean = np.copy(x_signal)
+        # TODO: need clean, noisy, and noise to properly evaluate
+        x_signal = x_signal + k * x_noise
     noise_specgram, noise_phasegram = freq_transform(x_noise)
     signal_specgram, signal_phasegram = freq_transform(x_signal)
 
