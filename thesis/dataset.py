@@ -85,6 +85,45 @@ def build_dataset(use_stft=False, use_simpler_data=False, k=0.5):
         x_noise, x_signal,
         noise_phasegram, signal_phasegram)
 
+def build_dataset2(use_stft=False, use_simpler_data=False, k=0.5, training_data_size=128, minibatch_size=16, specbinnum=128, numtimebins=512, n_noise_only_examples=4):
+    if use_stft:
+        # FIXME: this still doesn't work
+        dtype = complex64
+        freq_transform = stft
+    else:
+        dtype = theano.config.floatX
+        freq_transform = standard_specgram
 
+    if use_one_file and not use_simpler_data:
+        x_signal = load_soundfile(signal_files, 0)
+        x_noise = load_soundfile(noise_files, 0)
+    else:
+        x_signal, x_noise = create_simpler_data()
+        x_clean = np.copy(x_signal)
+        # TODO: need clean, noisy, and noise to properly evaluate
+        x_signal = x_signal + k * x_noise
+    noise_specgram, noise_phasegram = freq_transform(x_noise)
+    signal_specgram, signal_phasegram = freq_transform(x_signal)
+
+    training_data = np.zeros((training_data_size, minibatch_size, 1, specbinnum, numtimebins), dtype=dtype)
+    training_labels = np.zeros((training_data_size, minibatch_size), dtype=dtype)
+
+    noise_minibatch_range = range(n_noise_only_examples)
+
+    for which_training_batch in range(training_data_size):
+        for which_training_datum in range(minibatch_size):
+            if which_training_datum in noise_minibatch_range:
+                specgram = noise_specgram
+                label = background
+            else:
+                specgram = signal_specgram
+                label = foreground
+            startindex = np.random.randint(specgram.shape[1]-numtimebins)
+            training_data[which_training_batch, which_training_datum, :, :, :] = specgram[:, startindex:startindex+numtimebins]
+            training_labels[which_training_batch, which_training_datum] = label
+    return (training_data, training_labels,
+        noise_specgram, signal_specgram,
+        x_noise, x_signal,
+        noise_phasegram, signal_phasegram)
 if __name__ == '__main__':
     data, labels, noisegram, signalgram, x_noise, x_signal, noise_phasegram, signal_phasegram = build_dataset()
