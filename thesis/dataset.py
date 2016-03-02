@@ -125,5 +125,7 @@ def build_dataset2(use_stft=False, use_simpler_data=False, k=0.5, training_data_
         noise_specgram, signal_specgram,
         x_noise, x_signal,
         noise_phasegram, signal_phasegram)
+
+
 if __name__ == '__main__':
     data, labels, noisegram, signalgram, x_noise, x_signal, noise_phasegram, signal_phasegram = build_dataset()

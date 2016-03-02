@@ -1,6 +1,7 @@
 """this file/script helps clean up the current partitioned autoencoder network
 so that another can be made to train to correct phase noise
 """
+from datetime import datetime
 import lasagne
 import numpy as np
 import theano
@@ -11,11 +12,12 @@ from lasagne.nonlinearities import rectify
 from norm_layer import NormalisationLayer
 from dataset import build_dataset2
 
-dtype = np.float32
+dtype = theano.config.floatX
 
-class ZeroOutForegroundLatentsLayer(lasagne.layers.Layer):
+
+class ZeroOutBackgroundLatentsLayer(lasagne.layers.Layer):
     def __init__(self, incoming, **kwargs):
-        super(ZeroOutForegroundLatentsLayer, self).__init__(incoming)
+        super(ZeroOutBackgroundLatentsLayer, self).__init__(incoming)
         mp_down_factor = kwargs.get('mp_down_factor')
         numfilters = kwargs.get('numfilters')
         numtimebins = kwargs.get('numtimebins')
@@ -74,7 +76,7 @@ class PartitionedAutoencoder(object):
             network = lasagne.layers.MaxPool2DLayer(network, pool_size=(1, mp_down_factor), stride=(1, mp_down_factor))
             maxpool_layer = network
         latents = network
-        network = ZeroOutForegroundLatentsLayer(latents,
+        network = ZeroOutBackgroundLatentsLayer(latents,
             mp_down_factor=mp_down_factor,
             numfilters=self.numfilters,
             numtimebins=self.numtimebins,
@@ -98,7 +100,7 @@ class PartitionedAutoencoder(object):
     def loss_func(self, n_noise_only_examples, lambduh=0.75):
         prediction = self.get_output()
         loss = lasagne.objectives.squared_error(prediction, self.input_var)
-        sizeof_C = list(lasagne.layers.get_output_shape(self.network))
+        sizeof_C = list(lasagne.layers.get_output_shape(self.latents))
         sizeof_C[0] = self.minibatch_size
         C = np.zeros(sizeof_C)
         C[0:n_noise_only_examples, :, self.n_background_latents + 1:, :] = 1
@@ -125,10 +127,10 @@ class PartitionedAutoencoder(object):
         params = lasagne.layers.get_all_params(self.network, trainable=True)
         updates = update_func(self.loss, params, **update_params)
         updates[indx] = indx + 1
-        train_fn = theano.function([], loss, updates=updates,
+        train_fn = theano.function([], self.loss, updates=updates,
             givens={
-                input_var: training_data_shared[indx, :, :, :, :],
-                soft_output_var: training_labels_shared[indx, :, :],
+                self.input_var: training_data_shared[indx, :, :, :, :],
+                self.soft_output_var: training_labels_shared[indx, :, :],
             },
             allow_input_downcast=True,
         )
@@ -142,15 +144,41 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--minibatches', type=int, default=128)
     parser.add_argument('-b', '--minibatchsize', type=int, default=16)
     parser.add_argument('-k', '--snr', type=float, default=0.5)
+    parser.add_argument('-t', '--timesignal', type=bool, default=True)
     args = parser.parse_args()
 
+    cts = args.timesignal
+    numepochs = args.epochs
+
+    print 'creating partitioned autoencoder'
     pa = PartitionedAutoencoder()
 
+    print 'building dataset'
     training_data, training_labels, noise_specgram, signal_specgram, \
     x_noise, x_signal, noise_phasegram, signal_phasegram = build_dataset2(
         use_stft=False, use_simpler_data=True, k=args.snr, training_data_size=args.minibatches,
         minibatch_size=args.minibatchsize, specbinnum=pa.specbinnum, numtimebins=pa.numtimebins,
         n_noise_only_examples=args.minibatchsize/4)
 
-    train_fn = pa.train_fn(training_data, training_labels, 'adadelta')
+    print 'initialize train fn'
+    indx, train_fn = pa.train_fn(training_data, training_labels, 'adadelta')
 
+    dt = datetime.now().strftime('%Y%m%d%H%M')
+
+    print 'training network'
+    for epoch in xrange(numepochs):
+        loss = 0
+        indx.set_value(0)
+        for batch_idx in range(args.minibatches):
+            loss += train_fn()
+        lossreadout = loss / len(training_data)
+        infostring = "Epoch %d/%d: Loss %g" % (epoch, numepochs, lossreadout)
+        print infostring
+        if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch) or epoch % 50 == 0:
+            plot_probedata('noise', 'progress', plottitle="progress (%s)" % infostring, compute_time_signal=cts)
+            plot_probedata('signal', 'progress', plottitle="progress (%s)" % infostring, compute_time_signal=cts)
+            np.savez('npz/network_%s_epoch%s.npz' % (dt, epoch), *lasagne.layers.get_all_param_values(self.network))
+            np.savez('npz/latents_%s_epoch%s.npz' % (dt, epoch), *lasagne.layers.get_all_param_values(self.latents))
+
+    plot_probedata('noise', 'trained', plottitle="trained (%d epochs; Loss %g, )" % (numepochs, lossreadout), compute_time_signal=cts)
+    plot_probedata('signal', 'trained', plottitle="trained (%d epochs; Loss %g, )" % (numepochs, lossreadout), compute_time_signal=cts)

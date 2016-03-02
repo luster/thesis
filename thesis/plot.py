@@ -32,81 +32,116 @@ from dataset import build_dataset
 # from network import input_var, signal_specgram, network
 
 
-# examplegram_startindex = 500
+def plot_probedata(gram_name, outpostfix, plottitle=None, compute_time_signal=True):
+    """Visualises the network behaviour.
+    NOTE: currently accesses globals. Should really be passed in the network, filters etc"""
+    # global plot_probedata_data
+    if gram_name == 'noise':
+        sig = x_noise
+        gram = noise_specgram
+        phase = noise_phasegram
+    elif gram_name == 'signal':
+        sig = x_signal
+        gram = signal_specgram
+        phase = signal_phasegram
+    else:
+        raise Exception('invalid gram_name, %s' % gram)
 
-# plot_probedata_data = None
-# def plot_probedata(outpostfix, plottitle=None):
-#     """Visualises the network behaviour.
-#     NOTE: currently accesses globals. Should really be passed in the network, filters etc"""
-#     global plot_probedata_data
+    if plottitle==None:
+        plottitle = outpostfix
 
-#     if plottitle==None:
-#         plottitle = outpostfix
+    # if np.shape(plot_probedata_data)==():
+    plot_probedata_data = np.array([[gram[:, examplegram_startindex:examplegram_startindex+numtimebins]]], dtype)
 
-#     if np.shape(plot_probedata_data)==():
-#         plot_probedata_data = np.array([[signal_specgram[:, examplegram_startindex:examplegram_startindex+numtimebins]]], float32)
+    test_prediction = lasagne.layers.get_output(network, deterministic=True, reconstruct=True)
+    test_latents = lasagne.layers.get_output(latents, deterministic=True)
+    predict_fn = theano.function([input_var], test_prediction)
+    latents_fn = theano.function([input_var], test_latents)
+    prediction = predict_fn(plot_probedata_data)
+    latentsval = latents_fn(plot_probedata_data)
 
-#     test_prediction = lasagne.layers.get_output(network, deterministic=True)
-#     test_latents    = lasagne.layers.get_output(latents, deterministic=True)
-#     predict_fn = theano.function([input_var], test_prediction)
-#     latents_fn = theano.function([input_var], test_latents)
-#     prediction = predict_fn(plot_probedata_data)
-#     latentsval = latents_fn(plot_probedata_data)
-#     if False:
-#         print("Probedata  has shape %s and meanabs %g" % ( plot_probedata_data.shape, np.mean(np.abs(plot_probedata_data ))))
-#         print("Latents has shape %s and meanabs %g" % (latentsval.shape, np.mean(np.abs(latentsval))))
-#         print("Prediction has shape %s and meanabs %g" % (prediction.shape, np.mean(np.abs(prediction))))
-#         print("Ratio %g" % (np.mean(np.abs(prediction)) / np.mean(np.abs(plot_probedata_data))))
+    n_plots = 3
+    if compute_time_signal:
+        n_plots = 4
+        reconstructed_stft = prediction * np.exp(1j*phase[:, examplegram_startindex : examplegram_startindex + numtimebins])
+        reconstructed = istft(np.squeeze(reconstructed_stft), sig)
+        original_stft = plot_probedata_data * np.exp(1j * phase[:, examplegram_startindex : examplegram_startindex + numtimebins])
+        original = istft(np.squeeze(original_stft), sig)
+        real_original = sig[time_startindex : time_endindex]
 
-#     util.mkdir_p('pdf')
-#     pdf = PdfPages('pdf/autoenc_probe_%s.pdf' % outpostfix)
-#     plt.figure(frameon=False)
-#     #
-#     plt.subplot(3, 1, 1)
-#     plotdata = plot_probedata_data[0,0,:,:]
-#     plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
-#     plt.ylabel('Input')
-#     plt.title("%s" % (plottitle))
-#     #
-#     plt.subplot(3, 1, 2)
-#     plotdata = latentsval[0,0,:,:]
-#     plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
-#     plt.ylabel('Latents')
-#     #
-#     plt.subplot(3, 1, 3)
-#     plotdata = prediction[0,0,:,:]
-#     plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
-#     plt.ylabel('Output')
-#     #
-#     pdf.savefig()
-#     plt.close()
-#     ##
-#     for filtvar, filtlbl, isenc in [
-#         (filters_enc, 'encoding', True),
-#         (filters_dec, 'decoding', False),
-#             ]:
-#         plt.figure(frameon=False)
-#         vals = filtvar.get_value()
-#         #print("        %s filters have shape %s" % (filtlbl, vals.shape))
-#         vlim = np.max(np.abs(vals))
-#         for whichfilt in range(numfilters):
-#             plt.subplot(3, 8, whichfilt+1)
-#             # NOTE: for encoding/decoding filters, we grab the "slice" of interest from the tensor in different ways: different axes, and flipped.
-#             if isenc:
-#                 plotdata = vals[numfilters-(1+whichfilt),0,::-1,::-1]
-#             else:
-#                 plotdata = vals[:,0,whichfilt,:]
+    if False:
+        print("Probedata  has shape %s and meanabs %g" % ( plot_probedata_data.shape, np.mean(np.abs(plot_probedata_data ))))
+        print("Latents has shape %s and meanabs %g" % (latentsval.shape, np.mean(np.abs(latentsval))))
+        print("Prediction has shape %s and meanabs %g" % (prediction.shape, np.mean(np.abs(prediction))))
+        print("Ratio %g" % (np.mean(np.abs(prediction)) / np.mean(np.abs(plot_probedata_data))))
 
-#             plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-vlim, vmax=vlim)
-#             plt.xticks([])
-#             if whichfilt==0:
-#                 plt.title("%s filters (%s)" % (filtlbl, outpostfix))
-#             else:
-#                 plt.yticks([])
+    util.mkdir_p('pdf')
+    pdf = PdfPages('pdf/%s_autoenc_probe_%s.pdf' % (gram_name, outpostfix))
+    plt.figure(frameon=False)
+    #
+    plt.subplot(n_plots, 1, 1)
+    plotdata = plot_probedata_data[0,0,:,:]
+    plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
+    plt.ylabel('Input')
+    plt.title("%s" % (plottitle))
+    #
+    plt.subplot(n_plots, 1, 2)
+    plotdata = latentsval[0,0,:,:]
+    plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
+    plt.ylabel('Latents')
+    #
+    plt.subplot(n_plots, 1, 3)
+    plotdata = prediction[0,0,:,:]
+    plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
+    plt.ylabel('Output')
+    #
+    # ##
+    # for filtvar, filtlbl, isenc in [
+    #     (filters_enc, 'encoding', True),
+    #     (filters_dec, 'decoding', False),
+    #         ]:
+    #     plt.figure(frameon=False)
+    #     vals = filtvar.get_value()
+    #     vlim = np.max(np.abs(vals))
+    #     for whichfilt in range(numfilters):
+    #         plt.subplot(3, 8, whichfilt+1)
+    #         # NOTE: for encoding/decoding filters, we grab the "slice" of interest from the tensor in different ways: different axes, and flipped.
+    #         if isenc:
+    #             plotdata = vals[numfilters - (1 + whichfilt), 0, ::-1, ::-1]
+    #         else:
+    #             plotdata = vals[:, 0, whichfilt, :]
 
-#         pdf.savefig()
-#         plt.close()
-#     ##
-#     pdf.close()
+    #         plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-vlim, vmax=vlim)
+    #         plt.xticks([])
+    #         if whichfilt == 0:
+    #             plt.title("%s filters (%s)" % (filtlbl, outpostfix))
+    #         else:
+    #             plt.yticks([])
+    #     pdf.savefig()
+    #     plt.close()
 
-# plot_probedata('init')
+    if compute_time_signal:
+        plt.subplot(n_plots, 1, 4)
+        plotdata = reconstructed
+        # plt.plot(real_original, color='b', label='original signal')  # this signal is too big compared to the normalized ones
+        plt.plot(original, color='k', label='original')
+        plt.plot(plotdata, color='r', label='reconstructed')
+        plt.legend()
+        plt.ylabel('Output')
+    #
+    # plt.close()
+    ##
+    pdf.savefig()
+    plt.close()
+    pdf.close()
+
+    # if outpostfix == 'trained' and compute_time_signal:
+    if compute_time_signal:
+        specgram_ = np.array([[gram[:, examplegram_startindex : examplegram_startindex + numtimebins]]], dtype)
+        predicted_gram_ = predict_fn(specgram_)
+        phasegram_ = phase[:, examplegram_startindex : examplegram_startindex + numtimebins]
+
+        output_ = calculate_time_signal(predicted_gram_, phasegram_)
+        # save to wav
+        scikits.audiolab.wavwrite(output_, 'wav/out_%s.wav' % gram_name, fs=srate, enc='pcm16')
+    return
