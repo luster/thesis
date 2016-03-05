@@ -53,6 +53,7 @@ def save_sound(loosely_snr):
     print 'snr: ', 10*np.log10(1./loosely_snr**2), ' dB'
 
     # save files to wav
+    scikits.audiolab.wavwrite(noisy, 'phase_test/out_%s.wav' % 'noisy', fs=srate, enc='pcm16')
     scikits.audiolab.wavwrite(out_questionable, 'phase_test/out_%s.wav' % 'questionable', fs=srate, enc='pcm16')
     scikits.audiolab.wavwrite(out_shouldnt_be_questionable, 'phase_test/out_%s.wav' % 'noquestions', fs=srate, enc='pcm16')
 
