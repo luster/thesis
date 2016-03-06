@@ -43,15 +43,21 @@ if __name__ == '__main__':
     numepochs = args.epochs
     k_values = 10 ** (-np.array(args.snr) / 20.)
 
+    # create network(s)
+    pa_mag = PartitionedAutoencoder(num_minibatches=args.minibatches, specbinnum=specbinnum)
+    pa_phase = PartitionedAutoencoder(num_minibatches=args.minibatchsize, specbinnum=specbinnum)
+
     mse_cc = []
     mse_dc = []
     mse_cd = []
     mse_dd = []
     for snr_idx, k in enumerate(k_values):
+        # reinitialize networks
+        if snr_idx > 0:
+            pa_mag.initialize_network()
+            pa_phase.initialize_network()
+
         print 'k = ', k
-        # create network(s)
-        pa_mag = PartitionedAutoencoder(specbinnum=specbinnum)
-        pa_phase = PartitionedAutoencoder(specbinnum=specbinnum)
 
         # make dataset
         dataset = build_dataset2(use_stft=False, use_simpler_data=True,
@@ -126,6 +132,7 @@ if __name__ == '__main__':
 
                 latentsval_phase = latents_fn_phase(sample_phase)
                 latentsval_mag = latents_fn_mag(sample_mag)
+
         Sdc = normalize(calculate_time_signal(prediction_mag, dataset['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
         Scd = normalize(calculate_time_signal(dataset['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
         Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
@@ -141,6 +148,7 @@ if __name__ == '__main__':
         np.savez('npz/latents_mag_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_mag.latents))
         np.savez('npz/network_phase_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_phase.network))
         np.savez('npz/latents_phase_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_phase.latents))
+
     print mse_cc
     print mse_dc
     print mse_cd
