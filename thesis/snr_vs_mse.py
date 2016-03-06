@@ -121,8 +121,8 @@ if __name__ == '__main__':
                 print '\tMSE Scd: ', mean_squared_error(Scc, Scd)
                 print '\tMSE Sdd: ', mean_squared_error(Scc, Sdd)
 
-                latentsval_phase = latents_fn_phase(np.array([[dataset['signal_phase'][start:end]]], dtype))
-                latentsval_mag = latents_fn_mag(np.array([[dataset['signal_magnitude'][start:end]]], dtype))
+                latentsval_phase = latents_fn_phase(sample_phase)
+                latentsval_mag = latents_fn_mag(sample_mag)
         Sdc = normalize(calculate_time_signal(prediction_mag, dataset['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
         Scd = normalize(calculate_time_signal(dataset['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
         Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
