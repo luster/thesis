@@ -100,7 +100,11 @@ def build_dataset2(use_stft=False, use_simpler_data=False, k=0.5, training_data_
     else:
         x_signal, x_noise = create_simpler_data()
         x_clean = np.copy(x_signal)
-        x_signal = x_signal + k * x_noise
+        # prevent clipping conditions
+        if k < 1:
+            x_signal = x_signal + k * x_noise
+        else:
+            x_signal = 1/k * x_signal + x_noise
     noise_specgram, noise_phasegram = freq_transform(x_noise)
     signal_specgram, signal_phasegram = freq_transform(x_signal)
     clean_specgram, clean_phasegram = freq_transform(x_clean)
