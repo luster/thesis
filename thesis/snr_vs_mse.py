@@ -67,10 +67,10 @@ if __name__ == '__main__':
         # clean signal (baseline)
         idx = 105
         start = audioframe_len/2 * (idx + 1) - audioframe_len/2
-        end = start + audioframe_len/2 * (pa_mag.numtimebins + 1) + 1
+        end = start + audioframe_len/2 * (pa_mag.numtimebins + 1)  #+ 1
         clean = calculate_time_signal(dataset['clean_magnitude'], dataset['clean_phase'])
         Scc = normalize(clean, dataset['clean_time_signal'])[start:end]
-        baseline_mse = mean_squared_error(dataset['clean_time_signal'], clean)
+        baseline_mse = mean_squared_error(dataset['clean_time_signal'][start:end], Scc)
         print 'baseline mse: ', baseline_mse
         mse_cc.append(baseline_mse)
 
@@ -102,7 +102,7 @@ if __name__ == '__main__':
                 loss_mag += train_fn_mag()
                 loss_phase += train_fn_phase()
             lossreadout_mag = loss_mag / data_len
-            lossreadout_phase = loss_mag / data_len
+            lossreadout_phase = loss_phase / data_len
             infostring = "Epoch %d/%d: mag Loss %g, phase loss %g" % (epoch, numepochs, lossreadout_mag, lossreadout_phase)
             print infostring
             if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch) or epoch % 50 == 0:
@@ -117,12 +117,15 @@ if __name__ == '__main__':
                 Sdc = normalize(calculate_time_signal(prediction_mag, dataset['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
                 Scd = normalize(calculate_time_signal(dataset['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
                 Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
-                print 'MSE Sdc: ', mean_squared_error(Scc, Sdc)
-                print 'MSE Scd: ', mean_squared_error(Scc, Scd)
-                print 'MSE Sdd: ', mean_squared_error(Scc, Sdd)
+                print '\tMSE Sdc: ', mean_squared_error(Scc, Sdc)
+                print '\tMSE Scd: ', mean_squared_error(Scc, Scd)
+                print '\tMSE Sdd: ', mean_squared_error(Scc, Sdd)
 
-                latentsval_phase = latents_fn_phase(dataset['signal_phase'])
-                latentsval_mag = latents_fn_mag(dataset['signal_magnitude'])
+                latentsval_phase = latents_fn_phase(np.array([[dataset['signal_phase'][start:end]]], dtype))
+                latentsval_mag = latents_fn_mag(np.array([[dataset['signal_magnitude'][start:end]]], dtype))
+        Sdc = normalize(calculate_time_signal(prediction_mag, dataset['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
+        Scd = normalize(calculate_time_signal(dataset['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
+        Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
         mse_dc.append(mean_squared_error(Scc, Sdc))
         mse_cd.append(mean_squared_error(Scc, Scd))
         mse_dd.append(mean_squared_error(Scc, Sdd))
