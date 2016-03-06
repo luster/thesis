@@ -34,7 +34,7 @@ class ZeroOutBackgroundLatentsLayer(lasagne.layers.Layer):
             mask = np.ones((1, 1, numfilters, numtimebins))
         mask[:, :, 0:n_background_latents, :] = 0
         print np.squeeze(mask)
-        self.mask = theano.shared(mask, borrow=False)
+        self.mask = theano.shared(mask, borrow=True)
 
     def get_output_for(self, input_data, reconstruct=False, **kwargs):
         if reconstruct:
@@ -108,16 +108,16 @@ class PartitionedAutoencoder(object):
         sizeof_C[0] = self.minibatch_size
         C = np.zeros(sizeof_C)
         C[0:n_noise_only_examples, :, self.n_background_latents + 1:, :] = 1
-        C_mat = theano.shared(np.asarray(C, dtype=dtype), borrow=False)
-        mean_C = theano.shared(C.mean(), borrow=False)
+        C_mat = theano.shared(np.asarray(C, dtype=dtype), borrow=True)
+        mean_C = theano.shared(C.mean(), borrow=True)
 
         regularization_term = self.soft_output_var * ((C_mat * lasagne.layers.get_output(self.latents)).mean())**2
         loss = (loss.mean() + lambduh/mean_C * regularization_term).mean()
         return loss
 
     def train_fn(self, training_data, training_labels, updates='adadelta'):
-        training_labels_shared = theano.shared(training_labels.reshape(training_labels.shape[0], training_labels.shape[1], 1), borrow=False)
-        training_data_shared = theano.shared(np.asarray(training_data, dtype=dtype), borrow=False)
+        training_labels_shared = theano.shared(training_labels.reshape(training_labels.shape[0], training_labels.shape[1], 1), borrow=True)
+        training_data_shared = theano.shared(np.asarray(training_data, dtype=dtype), borrow=True)
         self.normlayer.set_normalisation(training_data)
 
         indx = theano.shared(0)
