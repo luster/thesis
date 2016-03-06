@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 plt.rcParams.update({'font.size': 6})
 
-from config import audioframe_len, specbinnum
+from config import audioframe_len, specbinnum, srate
 from dataset import build_dataset2
 from build_networks import dtype, PartitionedAutoencoder
 from util import calculate_time_signal
@@ -74,6 +74,9 @@ if __name__ == '__main__':
         print 'baseline mse: ', baseline_mse
         mse_cc.append(baseline_mse)
 
+        # noisy time signal
+        noisy = dataset['noisy_time_signal'][start:end]
+
         # normalize/get train functions
         indx_mag, train_fn_mag = pa_mag.train_fn(dataset['training_data_magnitude'], training_labels, 'adadelta')
         indx_phase, train_fn_phase = pa_phase.train_fn(dataset['training_data_phase'], training_labels, 'adadelta')
@@ -126,6 +129,11 @@ if __name__ == '__main__':
         Sdc = normalize(calculate_time_signal(prediction_mag, dataset['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
         Scd = normalize(calculate_time_signal(dataset['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
         Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
+        scikits.audiolab.wavwrite(noisy, 'wav/out_noisy_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
+        scikits.audiolab.wavwrite(Scc, 'wav/out_Scc_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
+        scikits.audiolab.wavwrite(Sdc, 'wav/out_Sdc_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
+        scikits.audiolab.wavwrite(Scd, 'wav/out_Scd_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
+        scikits.audiolab.wavwrite(Sdd, 'wav/out_Sdd_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
         mse_dc.append(mean_squared_error(Scc, Sdc))
         mse_cd.append(mean_squared_error(Scc, Scd))
         mse_dd.append(mean_squared_error(Scc, Sdd))

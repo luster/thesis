@@ -136,6 +136,7 @@ def build_dataset2(use_stft=False, use_simpler_data=False, k=0.5, training_data_
         'noise_magnitude': noise_specgram,
         'noise_phase': noise_phasegram,
         'clean_time_signal': x_clean,
+        'noisy_time_signal': x_signal,
     }
 
 if __name__ == '__main__':

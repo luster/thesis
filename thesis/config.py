@@ -24,8 +24,8 @@ n_freq_bins = 32
 n_iterations = 10**6
 noise_only_fraction = 0.25
 
-srate = 44100
-wavdownsample = 1
+srate = 22050
+wavdownsample = 2
 
 n_noise_only_examples = int(noise_only_fraction * minibatch_size)
 
