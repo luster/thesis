@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 plt.rcParams.update({'font.size': 6})
 
+from config import audioframe_len
 from dataset import build_dataset2
 from build_networks import dtype, PartitionedAutoencoder
 from util import calculate_time_signal
@@ -62,10 +63,14 @@ if __name__ == '__main__':
         # vars from dataset
         training_labels = dataset['training_labels']
         data_len = len(training_labels)
+
         # clean signal (baseline)
+        idx = 105
+        start = audioframe_len/2 * (idx + 1) - audioframe_len/2
+        end = start + audioframe_len/2 * (pa_mag.numtimebins + 1) + 1
         clean = calculate_time_signal(dataset['clean_magnitude'], dataset['clean_phase'])
-        Scc = normalize(clean, dataset['clean_time_signal'])
-        baseline_mse = mean_squared_error(dataset['clean_time_signal'], Scc)
+        Scc = normalize(clean, dataset['clean_time_signal'])[start:end]
+        baseline_mse = mean_squared_error(dataset['clean_time_signal'], clean)
         print 'baseline mse: ', baseline_mse
         mse_cc.append(baseline_mse)
 
@@ -83,6 +88,10 @@ if __name__ == '__main__':
         latents_fn_mag = theano.function([pa_mag.input_var], test_latents_mag)
         latents_fn_phase = theano.function([pa_phase.input_var], test_latents_phase)
 
+        # data sample for reconstruction
+        sample_mag = np.array([[dataset['signal_magnitude'][:, idx:idx+pa_mag.numtimebins]]], dtype)
+        sample_phase = np.array([[dataset['signal_phase'][:, idx:idx+pa_mag.numtimebins]]], dtype)
+
         # train network(s)
         for epoch in xrange(numepochs):
             loss_mag = 0
@@ -92,8 +101,9 @@ if __name__ == '__main__':
             for batch_idx in range(args.minibatches):
                 loss_mag += train_fn_mag()
                 loss_phase += train_fn_phase()
-            lossreadout = loss_mag / data_len
-            infostring = "Epoch %d/%d: Loss %g" % (epoch, numepochs, lossreadout)
+            lossreadout_mag = loss_mag / data_len
+            lossreadout_phase = loss_mag / data_len
+            infostring = "Epoch %d/%d: mag Loss %g, phase loss %g" % (epoch, numepochs, lossreadout_mag, lossreadout_phase)
             print infostring
             if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch) or epoch % 50 == 0:
                 """generate 4 time signals using networks:
@@ -102,17 +112,17 @@ if __name__ == '__main__':
                         Sdd: denoised mag, denoised phase
                     using these signals, compute MSE with respect to baseline
                 """
-                prediction_mag = predict_fn_mag(data['signal_magnitude'])
-                prediction_phase = predict_fn_phase(data['signal_phase'])
-                Sdc = normalize(calculate_time_signal(prediction_mag, dataset['clean_phase']), Scc)
-                Scd = normalize(calculate_time_signal(dataset['clean_magnitude'], prediction_phase), Scc)
+                prediction_mag = predict_fn_mag(sample_mag)
+                prediction_phase = predict_fn_phase(sample_phase)
+                Sdc = normalize(calculate_time_signal(prediction_mag, dataset['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
+                Scd = normalize(calculate_time_signal(dataset['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
                 Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
                 print 'MSE Sdc: ', mean_squared_error(Scc, Sdc)
                 print 'MSE Scd: ', mean_squared_error(Scc, Scd)
                 print 'MSE Sdd: ', mean_squared_error(Scc, Sdd)
 
-                latentsval_phase = latents_fn_phase(data['signal_phase'])
-                latentsval_mag = latents_fn_mag(data['signal_magnitude'])
+                latentsval_phase = latents_fn_phase(dataset['signal_phase'])
+                latentsval_mag = latents_fn_mag(dataset['signal_magnitude'])
         mse_dc.append(mean_squared_error(Scc, Sdc))
         mse_cd.append(mean_squared_error(Scc, Scd))
         mse_dd.append(mean_squared_error(Scc, Sdd))
