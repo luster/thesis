@@ -133,3 +133,15 @@ if __name__ == '__main__':
     print mse_dc
     print mse_cd
     print mse_dd
+    plt.figure()
+    plt.xlabel('SNR (dB)')
+    plt.ylabel('MSE')
+    plt.title('MSE vs. SNR for various signal reconstruction methods')
+    plt.plot(args.snr, mse_cc)
+    plt.plot(args.snr, mse_dc)
+    plt.plot(args.snr, mse_cd)
+    plt.plot(args.snr, mse_dd)
+    plt.legend(['Baseline', 'Denoised Mag, Clean Phase', 'Clean Mag, Denoised Phase', 'Denoised Mag, Denoised Phase'])
+    plt.savefig('snr_mse.png')
+    plt.savefig('snr_mse.pdf')
+    # plt.show()
