@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 plt.rcParams.update({'font.size': 6})
 
-from config import audioframe_len
+from config import audioframe_len, specbinnum
 from dataset import build_dataset2
 from build_networks import dtype, PartitionedAutoencoder
 from util import calculate_time_signal
@@ -47,11 +47,11 @@ if __name__ == '__main__':
     mse_dc = []
     mse_cd = []
     mse_dd = []
-    for k in k_values:
+    for snr_idx, k in enumerate(k_values):
         print 'k = ', k
         # create network(s)
-        pa_mag = PartitionedAutoencoder()
-        pa_phase = PartitionedAutoencoder()
+        pa_mag = PartitionedAutoencoder(specbinnum=specbinnum)
+        pa_phase = PartitionedAutoencoder(specbinnum=specbinnum)
 
         # make dataset
         dataset = build_dataset2(use_stft=False, use_simpler_data=True,
@@ -129,6 +129,10 @@ if __name__ == '__main__':
         mse_dc.append(mean_squared_error(Scc, Sdc))
         mse_cd.append(mean_squared_error(Scc, Scd))
         mse_dd.append(mean_squared_error(Scc, Sdd))
+        np.savez('npz/network_mag_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_mag.network))
+        np.savez('npz/latents_mag_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_mag.latents))
+        np.savez('npz/network_phase_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_phase.network))
+        np.savez('npz/latents_phase_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_phase.latents))
     print mse_cc
     print mse_dc
     print mse_cd
@@ -141,7 +145,7 @@ if __name__ == '__main__':
     plt.plot(args.snr, mse_dc)
     plt.plot(args.snr, mse_cd)
     plt.plot(args.snr, mse_dd)
-    plt.legend(['Baseline', 'Denoised Mag, Clean Phase', 'Clean Mag, Denoised Phase', 'Denoised Mag, Denoised Phase'])
+    plt.legend(['Baseline', 'Denoised Mag, Clean Phase', 'Clean Mag, Denoised Phase', 'Denoised Mag, Denoised Phase'], loc=3)
     plt.savefig('snr_mse.png')
     plt.savefig('snr_mse.pdf')
     # plt.show()
