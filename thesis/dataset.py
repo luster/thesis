@@ -100,12 +100,13 @@ def build_dataset2(use_stft=False, use_simpler_data=False, k=0.5, training_data_
     else:
         x_signal, x_noise = create_simpler_data()
         x_clean = np.copy(x_signal)
-        # TODO: need clean, noisy, and noise to properly evaluate
         x_signal = x_signal + k * x_noise
     noise_specgram, noise_phasegram = freq_transform(x_noise)
     signal_specgram, signal_phasegram = freq_transform(x_signal)
+    clean_specgram, clean_phasegram = freq_transform(x_clean)
 
-    training_data = np.zeros((training_data_size, minibatch_size, 1, specbinnum, numtimebins), dtype=dtype)
+    training_data_magnitude = np.zeros((training_data_size, minibatch_size, 1, specbinnum, numtimebins), dtype=dtype)
+    training_data_phase = np.copy(training_data_magnitude)
     training_labels = np.zeros((training_data_size, minibatch_size), dtype=dtype)
 
     noise_minibatch_range = range(n_noise_only_examples)
@@ -114,18 +115,28 @@ def build_dataset2(use_stft=False, use_simpler_data=False, k=0.5, training_data_
         for which_training_datum in range(minibatch_size):
             if which_training_datum in noise_minibatch_range:
                 specgram = noise_specgram
+                phasegram = noise_phasegram
                 label = background
             else:
                 specgram = signal_specgram
+                phasegram = signal_phasegram
                 label = foreground
-            startindex = np.random.randint(specgram.shape[1]-numtimebins)
-            training_data[which_training_batch, which_training_datum, :, :, :] = specgram[:, startindex:startindex+numtimebins]
+            startindex = np.random.randint(specgram.shape[1] - numtimebins)
+            training_data_magnitude[which_training_batch, which_training_datum, :, :, :] = specgram[:, startindex:startindex+numtimebins]
+            training_data_phase[which_training_batch, which_training_datum, :, :, :] = phasegram[:, startindex:startindex+numtimebins]
             training_labels[which_training_batch, which_training_datum] = label
-    return (training_data, training_labels,
-        noise_specgram, signal_specgram,
-        x_noise, x_signal,
-        noise_phasegram, signal_phasegram)
-
+    return {
+        'training_labels': training_labels,
+        'training_data_magnitude': training_data_magnitude,
+        'training_data_phase': training_data_phase,
+        'clean_magnitude': clean_specgram,
+        'clean_phase': clean_phasegram,
+        'signal_magnitude': signal_specgram,
+        'signal_phase': signal_phasegram,
+        'noise_magnitude': noise_specgram,
+        'noise_phase': noise_phasegram,
+        'clean_time_signal': x_clean,
+    }
 
 if __name__ == '__main__':
     data, labels, noisegram, signalgram, x_noise, x_signal, noise_phasegram, signal_phasegram = build_dataset()

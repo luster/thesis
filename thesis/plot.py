@@ -32,10 +32,7 @@ from dataset import build_dataset
 # from network import input_var, signal_specgram, network
 
 
-def plot_probedata(gram_name, outpostfix, plottitle=None, compute_time_signal=True):
-    """Visualises the network behaviour.
-    NOTE: currently accesses globals. Should really be passed in the network, filters etc"""
-    # global plot_probedata_data
+def make_plots(gram_name, outpostfix, plottitle=None, compute_time_signal=True):
     if gram_name == 'noise':
         sig = x_noise
         gram = noise_specgram
@@ -94,31 +91,6 @@ def plot_probedata(gram_name, outpostfix, plottitle=None, compute_time_signal=Tr
     plotdata = prediction[0,0,:,:]
     plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-np.max(np.abs(plotdata)), vmax=np.max(np.abs(plotdata)))
     plt.ylabel('Output')
-    #
-    # ##
-    # for filtvar, filtlbl, isenc in [
-    #     (filters_enc, 'encoding', True),
-    #     (filters_dec, 'decoding', False),
-    #         ]:
-    #     plt.figure(frameon=False)
-    #     vals = filtvar.get_value()
-    #     vlim = np.max(np.abs(vals))
-    #     for whichfilt in range(numfilters):
-    #         plt.subplot(3, 8, whichfilt+1)
-    #         # NOTE: for encoding/decoding filters, we grab the "slice" of interest from the tensor in different ways: different axes, and flipped.
-    #         if isenc:
-    #             plotdata = vals[numfilters - (1 + whichfilt), 0, ::-1, ::-1]
-    #         else:
-    #             plotdata = vals[:, 0, whichfilt, :]
-
-    #         plt.imshow(plotdata, origin='lower', interpolation='nearest', cmap='RdBu', aspect='auto', vmin=-vlim, vmax=vlim)
-    #         plt.xticks([])
-    #         if whichfilt == 0:
-    #             plt.title("%s filters (%s)" % (filtlbl, outpostfix))
-    #         else:
-    #             plt.yticks([])
-    #     pdf.savefig()
-    #     plt.close()
 
     if compute_time_signal:
         plt.subplot(n_plots, 1, 4)

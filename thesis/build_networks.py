@@ -11,6 +11,10 @@ from conv_layer import custom_convlayer
 from lasagne.nonlinearities import rectify
 from norm_layer import NormalisationLayer
 from dataset import build_dataset2
+from plot import make_plots
+import scikits.audiolab
+from sklearn.metrics import mean_squared_error
+
 
 dtype = theano.config.floatX
 
@@ -175,10 +179,10 @@ if __name__ == '__main__':
         infostring = "Epoch %d/%d: Loss %g" % (epoch, numepochs, lossreadout)
         print infostring
         if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch) or epoch % 50 == 0:
-            plot_probedata('noise', 'progress', plottitle="progress (%s)" % infostring, compute_time_signal=cts)
-            plot_probedata('signal', 'progress', plottitle="progress (%s)" % infostring, compute_time_signal=cts)
-            np.savez('npz/network_%s_epoch%s.npz' % (dt, epoch), *lasagne.layers.get_all_param_values(self.network))
-            np.savez('npz/latents_%s_epoch%s.npz' % (dt, epoch), *lasagne.layers.get_all_param_values(self.latents))
-
-    plot_probedata('noise', 'trained', plottitle="trained (%d epochs; Loss %g, )" % (numepochs, lossreadout), compute_time_signal=cts)
-    plot_probedata('signal', 'trained', plottitle="trained (%d epochs; Loss %g, )" % (numepochs, lossreadout), compute_time_signal=cts)
+            """generate 4 time signals using networks:
+                    clean mag, clean phase (baseline)
+                    denoised mag, clean phase
+                    clean phase, denoised mag
+                    denoised mag, denoised phase
+                using these signals, compute MSE with respec to baseline
+            """

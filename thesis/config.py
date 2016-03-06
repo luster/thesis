@@ -71,6 +71,5 @@ if use_simpler_data:
     sig_file = 'my_perfect_clean_guitar_sound.wav'
     noise_files = glob(os.path.join(data_folder, noise_file))[0]
     signal_files = glob(os.path.join(data_folder, sig_file))[0]
-    print noise_files, signal_files
 
 use_maxpool = False
