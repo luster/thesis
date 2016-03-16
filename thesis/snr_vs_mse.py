@@ -19,7 +19,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 plt.rcParams.update({'font.size': 6})
 
 from config import audioframe_len, specbinnum, srate
-from dataset import build_dataset2
+from dataset import build_dataset2, load_soundfiles
 from build_networks import dtype, PartitionedAutoencoder
 from util import calculate_time_signal
 from sklearn.metrics import mean_squared_error
@@ -47,10 +47,11 @@ if __name__ == '__main__':
     pa_mag = PartitionedAutoencoder(num_minibatches=args.minibatches, specbinnum=specbinnum)
     pa_phase = PartitionedAutoencoder(num_minibatches=args.minibatchsize, specbinnum=specbinnum)
 
-    mse_cc = []
-    mse_dc = []
-    mse_cd = []
-    mse_dd = []
+    mse_cc = []  # clean reconstruction
+    mse_dc = []  # denoised magnitude, clean phase
+    mse_cd = []  # clean magnitude, denoised phase
+    mse_dd = []  # denoised magnitude, denoised phase
+    mse_noisy = []  # baseline mse, Y = S + N w.r.t. S
     for snr_idx, k in enumerate(k_values):
         # reinitialize networks
         if snr_idx > 0:
@@ -82,6 +83,7 @@ if __name__ == '__main__':
 
         # noisy time signal
         noisy = dataset['noisy_time_signal'][start:end]
+        noisy = normalize(noisy, Scc)
 
         # normalize/get train functions
         indx_mag, train_fn_mag = pa_mag.train_fn(dataset['training_data_magnitude'], training_labels, 'adadelta')
@@ -133,17 +135,22 @@ if __name__ == '__main__':
                 latentsval_phase = latents_fn_phase(sample_phase)
                 latentsval_mag = latents_fn_mag(sample_mag)
 
+        # normalize signals with respect to clean reconstruction
         Sdc = normalize(calculate_time_signal(prediction_mag, dataset['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
         Scd = normalize(calculate_time_signal(dataset['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
         Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
+        # save wav files
         scikits.audiolab.wavwrite(noisy, 'wav/out_noisy_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
         scikits.audiolab.wavwrite(Scc, 'wav/out_Scc_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
         scikits.audiolab.wavwrite(Sdc, 'wav/out_Sdc_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
         scikits.audiolab.wavwrite(Scd, 'wav/out_Scd_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
         scikits.audiolab.wavwrite(Sdd, 'wav/out_Sdd_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
+        # add mses to lists for plotting
         mse_dc.append(mean_squared_error(Scc, Sdc))
         mse_cd.append(mean_squared_error(Scc, Scd))
         mse_dd.append(mean_squared_error(Scc, Sdd))
+        mse_noisy.append(mean_squared_error(Scc, noisy))
+        # save model
         np.savez('npz/network_mag_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_mag.network))
         np.savez('npz/latents_mag_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_mag.latents))
         np.savez('npz/network_phase_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_phase.network))
@@ -153,6 +160,8 @@ if __name__ == '__main__':
     print mse_dc
     print mse_cd
     print mse_dd
+    print mse_noisy
+    # plot MSE vs. SNR for various reconstructions
     plt.figure()
     plt.xlabel('SNR (dB)')
     plt.ylabel('MSE')
@@ -161,7 +170,8 @@ if __name__ == '__main__':
     plt.plot(args.snr, mse_dc)
     plt.plot(args.snr, mse_cd)
     plt.plot(args.snr, mse_dd)
-    plt.legend(['Baseline', 'Denoised Mag, Clean Phase', 'Clean Mag, Denoised Phase', 'Denoised Mag, Denoised Phase'], loc=3)
+    plt.plot(args.snr, mse_noisy)
+    plt.legend(['Baseline', 'Denoised Mag, Clean Phase', 'Clean Mag, Denoised Phase', 'Denoised Mag, Denoised Phase', 'Noisy'], loc=3)
     plt.savefig('snr_mse.png')
     plt.savefig('snr_mse.pdf')
     # plt.show()

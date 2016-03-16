@@ -1,3 +1,5 @@
+from __futrue__ import division
+
 import os
 
 from random import randint, uniform
@@ -11,27 +13,7 @@ import theano.tensor as T
 
 import lasagne
 
-from config import (
-    lambduh,
-    minibatch_size,
-    hop,
-    n_freq_bins,
-    n_iterations,
-    noise_only_fraction,
-    n_noise_only_examples,
-    specgram_timeframes,
-    fft_bins,
-    n_latents,
-    conv_filter_length,
-    maxpooling_downsample_factor,
-    noise_files,
-    signal_files,
-    use_one_file,
-    specbinnum,
-    numtimebins,
-    training_data_size,
-    use_complex,
-)
+from config import *
 from util import standard_specgram, load_soundfile, stft
 
 background = 1.
@@ -105,6 +87,76 @@ def build_dataset2(use_stft=False, use_simpler_data=False, k=0.5, training_data_
             x_signal = x_signal + k * x_noise
         else:
             x_signal = 1/k * x_signal + x_noise
+    noise_specgram, noise_phasegram = freq_transform(x_noise)
+    signal_specgram, signal_phasegram = freq_transform(x_signal)
+    clean_specgram, clean_phasegram = freq_transform(x_clean)
+
+    training_data_magnitude = np.zeros((training_data_size, minibatch_size, 1, specbinnum, numtimebins), dtype=dtype)
+    training_data_phase = np.copy(training_data_magnitude)
+    training_labels = np.zeros((training_data_size, minibatch_size), dtype=dtype)
+
+    noise_minibatch_range = range(n_noise_only_examples)
+
+    for which_training_batch in range(training_data_size):
+        for which_training_datum in range(minibatch_size):
+            if which_training_datum in noise_minibatch_range:
+                specgram = noise_specgram
+                phasegram = noise_phasegram
+                label = background
+            else:
+                specgram = signal_specgram
+                phasegram = signal_phasegram
+                label = foreground
+            startindex = np.random.randint(specgram.shape[1] - numtimebins)
+            training_data_magnitude[which_training_batch, which_training_datum, :, :, :] = specgram[:, startindex:startindex+numtimebins]
+            training_data_phase[which_training_batch, which_training_datum, :, :, :] = phasegram[:, startindex:startindex+numtimebins]
+            training_labels[which_training_batch, which_training_datum] = label
+    return {
+        'training_labels': training_labels,
+        'training_data_magnitude': training_data_magnitude,
+        'training_data_phase': training_data_phase,
+        'clean_magnitude': clean_specgram,
+        'clean_phase': clean_phasegram,
+        'signal_magnitude': signal_specgram,
+        'signal_phase': signal_phasegram,
+        'noise_magnitude': noise_specgram,
+        'noise_phase': noise_phasegram,
+        'clean_time_signal': x_clean,
+        'noisy_time_signal': x_signal,
+    }
+
+
+def load_soundfiles(signal, noise):
+    x_signal = load_soundfile(clean, 0)
+    x_noise = load_soundfile(noise, 0)
+    return x_signal, x_noise
+
+
+def build_dataset3(x_signal, x_noise, sec_of_audio=20, k=0.5, training_data_size=128,
+    minibatch_size=16, specbinnum=128, numtimebins=512, n_noise_only_examples=4, index=0):
+
+    dtype = theano.config.floatX
+    freq_transform = standard_specgram
+
+    x_clean = np.copy(x_signal)
+
+    # need a slice of x_signal and x_noise to add, obviously of the same size
+    if len(x_signal) > len(x_noise):
+        indx = len(x_noise)
+    else:
+        indx = len(x_signal)
+
+    if indx > sec_of_audio*srate:
+        start = np.random.randint(indx - sec_of_audio*srate)
+    else:
+        raise ValueError('not enough audio data')
+
+
+    # prevent clipping conditions
+    if k < 1:
+        x_signal = x_signal + k * x_noise
+    else:
+        x_signal = 1/k * x_signal + x_noise
     noise_specgram, noise_phasegram = freq_transform(x_noise)
     signal_specgram, signal_phasegram = freq_transform(x_signal)
     clean_specgram, clean_phasegram = freq_transform(x_clean)

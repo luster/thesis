@@ -33,7 +33,7 @@ class ZeroOutBackgroundLatentsLayer(lasagne.layers.Layer):
         else:
             mask = np.ones((1, 1, numfilters, numtimebins))
         mask[:, :, 0:n_background_latents, :] = 0
-        print np.squeeze(mask)
+        # print np.squeeze(mask)
         self.mask = theano.shared(mask, borrow=True)
 
     def get_output_for(self, input_data, reconstruct=False, **kwargs):
@@ -198,3 +198,4 @@ if __name__ == '__main__':
                     denoised mag, denoised phase
                 using these signals, compute MSE with respec to baseline
             """
+            pass
