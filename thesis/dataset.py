@@ -1,4 +1,4 @@
-from __futrue__ import division
+from __future__ import division
 
 import os
 
@@ -127,7 +127,7 @@ def build_dataset2(use_stft=False, use_simpler_data=False, k=0.5, training_data_
 
 
 def load_soundfiles(signal, noise):
-    x_signal = load_soundfile(clean, 0)
+    x_signal = load_soundfile(signal, 0)
     x_noise = load_soundfile(noise, 0)
     return x_signal, x_noise
 
@@ -148,11 +148,15 @@ def build_dataset3(x_signal, x_noise, sec_of_audio=20, k=0.5, training_data_size
 
     if indx > sec_of_audio*srate:
         start = np.random.randint(indx - sec_of_audio*srate)
+        end = start + sec_of_audio*srate + 1
     else:
         raise ValueError('not enough audio data')
 
+    x_signal = x_signal[start:end]
+    x_noise = x_noise[start:end]
+    x_clean = x_clean[start:end]
 
-    # prevent clipping conditions
+    # prevent clipping
     if k < 1:
         x_signal = x_signal + k * x_noise
     else:

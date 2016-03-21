@@ -19,7 +19,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 plt.rcParams.update({'font.size': 6})
 
 from config import audioframe_len, specbinnum, srate
-from dataset import build_dataset2, load_soundfiles
+from dataset import build_dataset3, load_soundfiles
 from build_networks import dtype, PartitionedAutoencoder
 from util import calculate_time_signal
 from sklearn.metrics import mean_squared_error
@@ -31,17 +31,20 @@ def normalize(this, against):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('-e', '--epochs', type=int, default=64)
+    parser.add_argument('-e', '--epochs', type=int, default=16)
     parser.add_argument('-u', '--updates', type=str, default='adadelta')
     parser.add_argument('-m', '--minibatches', type=int, default=128)
     parser.add_argument('-b', '--minibatchsize', type=int, default=16)
-    parser.add_argument('-k', '--snr', type=float, nargs='+', default=[-6,-3,0,3,6,9,12])
+    parser.add_argument('-k', '--snr', type=float, nargs='+', default=[-3,0,1,2,3,6,9,12])
     parser.add_argument('-t', '--timesignal', type=bool, default=True)
+    parser.add_argument('-s', '--signal', type=str, default='../data/chon/signal_44.wav')
+    parser.add_argument('-n', '--noise', type=str, default='../data/chon/noise_44.wav')
     args = parser.parse_args()
 
     cts = args.timesignal
     numepochs = args.epochs
     k_values = 10 ** (-np.array(args.snr) / 20.)
+    signal, noise = load_soundfiles(args.signal, args.noise)
 
     # create network(s)
     pa_mag = PartitionedAutoencoder(num_minibatches=args.minibatches, specbinnum=specbinnum)
@@ -61,33 +64,33 @@ if __name__ == '__main__':
         print 'k = ', k
 
         # make dataset
-        dataset = build_dataset2(use_stft=False, use_simpler_data=True,
-            k=k, training_data_size=args.minibatches,
+        dataset_ = build_dataset3(signal, noise, sec_of_audio=30, k=k,
+            training_data_size=args.minibatches,
             minibatch_size=args.minibatchsize, specbinnum=pa_mag.specbinnum,
             numtimebins=pa_mag.numtimebins,
-            n_noise_only_examples=int(args.minibatchsize / 4))
+            n_noise_only_examples=int(args.minibatchsize / 4), index=0)
 
         # vars from dataset
-        training_labels = dataset['training_labels']
+        training_labels = dataset_['training_labels']
         data_len = len(training_labels)
 
         # clean signal (baseline)
         idx = 105
         start = audioframe_len/2 * (idx + 1) - audioframe_len/2
         end = start + audioframe_len/2 * (pa_mag.numtimebins + 1)  #+ 1
-        clean = calculate_time_signal(dataset['clean_magnitude'], dataset['clean_phase'])
-        Scc = normalize(clean, dataset['clean_time_signal'])[start:end]
-        baseline_mse = mean_squared_error(dataset['clean_time_signal'][start:end], Scc)
+        clean = calculate_time_signal(dataset_['clean_magnitude'], dataset_['clean_phase'])
+        Scc = normalize(clean, dataset_['clean_time_signal'])[start:end]
+        baseline_mse = mean_squared_error(dataset_['clean_time_signal'][start:end], Scc)
         print 'baseline mse: ', baseline_mse
         mse_cc.append(baseline_mse)
 
         # noisy time signal
-        noisy = dataset['noisy_time_signal'][start:end]
+        noisy = dataset_['noisy_time_signal'][start:end]
         noisy = normalize(noisy, Scc)
 
         # normalize/get train functions
-        indx_mag, train_fn_mag = pa_mag.train_fn(dataset['training_data_magnitude'], training_labels, 'adadelta')
-        indx_phase, train_fn_phase = pa_phase.train_fn(dataset['training_data_phase'], training_labels, 'adadelta')
+        indx_mag, train_fn_mag = pa_mag.train_fn(dataset_['training_data_magnitude'], training_labels, 'adadelta')
+        indx_phase, train_fn_phase = pa_phase.train_fn(dataset_['training_data_phase'], training_labels, 'adadelta')
 
         # reconstruction functions
         test_prediction_mag = lasagne.layers.get_output(pa_mag.network, deterministic=True, reconstruct=True)
@@ -100,8 +103,8 @@ if __name__ == '__main__':
         latents_fn_phase = theano.function([pa_phase.input_var], test_latents_phase)
 
         # data sample for reconstruction
-        sample_mag = np.array([[dataset['signal_magnitude'][:, idx:idx+pa_mag.numtimebins]]], dtype)
-        sample_phase = np.array([[dataset['signal_phase'][:, idx:idx+pa_mag.numtimebins]]], dtype)
+        sample_mag = np.array([[dataset_['signal_magnitude'][:, idx:idx+pa_mag.numtimebins]]], dtype)
+        sample_phase = np.array([[dataset_['signal_phase'][:, idx:idx+pa_mag.numtimebins]]], dtype)
 
         # train network(s)
         for epoch in xrange(numepochs):
@@ -109,6 +112,14 @@ if __name__ == '__main__':
             loss_phase = 0
             indx_mag.set_value(0)
             indx_phase.set_value(0)
+            dataset = build_dataset3(signal, noise, sec_of_audio=30, k=k,
+                training_data_size=args.minibatches,
+                minibatch_size=args.minibatchsize, specbinnum=pa_mag.specbinnum,
+                numtimebins=pa_mag.numtimebins,
+                n_noise_only_examples=int(args.minibatchsize / 4), index=0)
+            # normalize/get train functions
+            indx_mag, train_fn_mag = pa_mag.train_fn(dataset['training_data_magnitude'], training_labels, 'adadelta')
+            indx_phase, train_fn_phase = pa_phase.train_fn(dataset['training_data_phase'], training_labels, 'adadelta')
             for batch_idx in range(args.minibatches):
                 loss_mag += train_fn_mag()
                 loss_phase += train_fn_phase()
@@ -125,8 +136,8 @@ if __name__ == '__main__':
                 """
                 prediction_mag = predict_fn_mag(sample_mag)
                 prediction_phase = predict_fn_phase(sample_phase)
-                Sdc = normalize(calculate_time_signal(prediction_mag, dataset['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
-                Scd = normalize(calculate_time_signal(dataset['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
+                Sdc = normalize(calculate_time_signal(prediction_mag, dataset_['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
+                Scd = normalize(calculate_time_signal(dataset_['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
                 Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
                 print '\tMSE Sdc: ', mean_squared_error(Scc, Sdc)
                 print '\tMSE Scd: ', mean_squared_error(Scc, Scd)
@@ -136,8 +147,8 @@ if __name__ == '__main__':
                 latentsval_mag = latents_fn_mag(sample_mag)
 
         # normalize signals with respect to clean reconstruction
-        Sdc = normalize(calculate_time_signal(prediction_mag, dataset['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
-        Scd = normalize(calculate_time_signal(dataset['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
+        Sdc = normalize(calculate_time_signal(prediction_mag, dataset_['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
+        Scd = normalize(calculate_time_signal(dataset_['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
         Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
         # save wav files
         scikits.audiolab.wavwrite(noisy, 'wav/out_noisy_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
