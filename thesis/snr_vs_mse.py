@@ -107,7 +107,8 @@ if __name__ == '__main__':
         sample_phase = np.array([[dataset_['signal_phase'][:, idx:idx+pa_mag.numtimebins]]], dtype)
 
 
-        for _ in range(32):
+        outer_ = 8
+        for _ in range(outer_):
             dataset = build_dataset3(signal, noise, sec_of_audio=15, k=k,
                 training_data_size=args.minibatches,
                 minibatch_size=args.minibatchsize, specbinnum=pa_mag.specbinnum,
@@ -125,7 +126,7 @@ if __name__ == '__main__':
                 indx_phase.set_value(0)
 
                 for batch_idx in range(args.minibatches):
-                    print 'Starting dataset {}/32, epoch {}/{}, batch {}/{}'.format(_+1, epoch+1, numepochs, batch_idx+1, args.minibatches)
+                    print 'Starting dataset {}/{}, epoch {}/{}, batch {}/{}'.format(_+1, outer_, epoch+1, numepochs, batch_idx+1, args.minibatches)
                     loss_mag += train_fn_mag()
                     loss_phase += train_fn_phase()
                 lossreadout_mag = loss_mag / data_len
