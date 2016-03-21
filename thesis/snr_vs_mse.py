@@ -61,10 +61,10 @@ if __name__ == '__main__':
             pa_mag.initialize_network()
             pa_phase.initialize_network()
 
-        print 'k = ', k
+        print 'SNR = ', args.snr[snr_idx]
 
         # make dataset
-        dataset_ = build_dataset3(signal, noise, sec_of_audio=30, k=k,
+        dataset_ = build_dataset3(signal, noise, sec_of_audio=15, k=k,
             training_data_size=args.minibatches,
             minibatch_size=args.minibatchsize, specbinnum=pa_mag.specbinnum,
             numtimebins=pa_mag.numtimebins,
@@ -106,13 +106,9 @@ if __name__ == '__main__':
         sample_mag = np.array([[dataset_['signal_magnitude'][:, idx:idx+pa_mag.numtimebins]]], dtype)
         sample_phase = np.array([[dataset_['signal_phase'][:, idx:idx+pa_mag.numtimebins]]], dtype)
 
-        # train network(s)
-        for epoch in xrange(numepochs):
-            loss_mag = 0
-            loss_phase = 0
-            indx_mag.set_value(0)
-            indx_phase.set_value(0)
-            dataset = build_dataset3(signal, noise, sec_of_audio=30, k=k,
+
+        for _ in range(32):
+            dataset = build_dataset3(signal, noise, sec_of_audio=15, k=k,
                 training_data_size=args.minibatches,
                 minibatch_size=args.minibatchsize, specbinnum=pa_mag.specbinnum,
                 numtimebins=pa_mag.numtimebins,
@@ -120,31 +116,40 @@ if __name__ == '__main__':
             # normalize/get train functions
             indx_mag, train_fn_mag = pa_mag.train_fn(dataset['training_data_magnitude'], training_labels, 'adadelta')
             indx_phase, train_fn_phase = pa_phase.train_fn(dataset['training_data_phase'], training_labels, 'adadelta')
-            for batch_idx in range(args.minibatches):
-                loss_mag += train_fn_mag()
-                loss_phase += train_fn_phase()
-            lossreadout_mag = loss_mag / data_len
-            lossreadout_phase = loss_phase / data_len
-            infostring = "Epoch %d/%d: mag Loss %g, phase loss %g" % (epoch, numepochs, lossreadout_mag, lossreadout_phase)
-            print infostring
-            if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch) or epoch % 50 == 0:
-                """generate 4 time signals using networks:
-                        Sdc: denoised mag, clean phase
-                        Scd: clean mag, denoised phase
-                        Sdd: denoised mag, denoised phase
-                    using these signals, compute MSE with respect to baseline
-                """
-                prediction_mag = predict_fn_mag(sample_mag)
-                prediction_phase = predict_fn_phase(sample_phase)
-                Sdc = normalize(calculate_time_signal(prediction_mag, dataset_['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
-                Scd = normalize(calculate_time_signal(dataset_['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
-                Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
-                print '\tMSE Sdc: ', mean_squared_error(Scc, Sdc)
-                print '\tMSE Scd: ', mean_squared_error(Scc, Scd)
-                print '\tMSE Sdd: ', mean_squared_error(Scc, Sdd)
 
-                latentsval_phase = latents_fn_phase(sample_phase)
-                latentsval_mag = latents_fn_mag(sample_mag)
+            # train network(s)
+            for epoch in xrange(numepochs):
+                loss_mag = 0
+                loss_phase = 0
+                indx_mag.set_value(0)
+                indx_phase.set_value(0)
+
+                for batch_idx in range(args.minibatches):
+                    print 'Starting dataset {}/32, epoch {}/{}, batch {}/{}'.format(_+1, epoch+1, numepochs, batch_idx+1, args.minibatches)
+                    loss_mag += train_fn_mag()
+                    loss_phase += train_fn_phase()
+                lossreadout_mag = loss_mag / data_len
+                lossreadout_phase = loss_phase / data_len
+                infostring = "Epoch %d/%d: mag Loss %g, phase loss %g" % (epoch, numepochs, lossreadout_mag, lossreadout_phase)
+                print infostring
+                if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch) or epoch % 50 == 0:
+                    """generate 4 time signals using networks:
+                            Sdc: denoised mag, clean phase
+                            Scd: clean mag, denoised phase
+                            Sdd: denoised mag, denoised phase
+                        using these signals, compute MSE with respect to baseline
+                    """
+                    prediction_mag = predict_fn_mag(sample_mag)
+                    prediction_phase = predict_fn_phase(sample_phase)
+                    Sdc = normalize(calculate_time_signal(prediction_mag, dataset_['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
+                    Scd = normalize(calculate_time_signal(dataset_['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
+                    Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
+                    print '\tMSE Sdc: ', mean_squared_error(Scc, Sdc)
+                    print '\tMSE Scd: ', mean_squared_error(Scc, Scd)
+                    print '\tMSE Sdd: ', mean_squared_error(Scc, Sdd)
+
+                    latentsval_phase = latents_fn_phase(sample_phase)
+                    latentsval_mag = latents_fn_mag(sample_mag)
 
         # normalize signals with respect to clean reconstruction
         Sdc = normalize(calculate_time_signal(prediction_mag, dataset_['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
