@@ -107,7 +107,7 @@ if __name__ == '__main__':
         sample_phase = np.array([[dataset_['signal_phase'][:, idx:idx+pa_mag.numtimebins]]], dtype)
 
 
-        outer_ = 8
+        outer_ = 1
         for _ in range(outer_):
             dataset = build_dataset3(signal, noise, sec_of_audio=15, k=k,
                 training_data_size=args.minibatches,
