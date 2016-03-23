@@ -31,11 +31,12 @@ def normalize(this, against):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument('-r', '--niter', type=int, default=1024)
     parser.add_argument('-e', '--epochs', type=int, default=16)
-    parser.add_argument('-u', '--updates', type=str, default='adadelta')
-    parser.add_argument('-m', '--minibatches', type=int, default=128)
+    parser.add_argument('-u', '--updates', type=str, default='adam')
+    parser.add_argument('-m', '--minibatches', type=int, default=192)
     parser.add_argument('-b', '--minibatchsize', type=int, default=16)
-    parser.add_argument('-k', '--snr', type=float, nargs='+', default=[-3,0,1,2,3,6,9,12])
+    parser.add_argument('-k', '--snr', type=float, nargs='+', default=[-3,0,3,6,9,12])
     parser.add_argument('-t', '--timesignal', type=bool, default=True)
     parser.add_argument('-s', '--signal', type=str, default='../data/chon/signal_44.wav')
     parser.add_argument('-n', '--noise', type=str, default='../data/chon/noise_44.wav')
@@ -49,6 +50,7 @@ if __name__ == '__main__':
     # create network(s)
     pa_mag = PartitionedAutoencoder(num_minibatches=args.minibatches, specbinnum=specbinnum)
     pa_phase = PartitionedAutoencoder(num_minibatches=args.minibatchsize, specbinnum=specbinnum)
+    print pa_mag.__dict__
 
     mse_cc = []  # clean reconstruction
     mse_dc = []  # denoised magnitude, clean phase
@@ -110,8 +112,9 @@ if __name__ == '__main__':
         train_fn_mag = pa_mag.train_fn_slim('adam')
         train_fn_phase = pa_phase.train_fn_slim('adam')
 
-        for _ in range(512):
-            dataset = build_dataset3(signal, noise, sec_of_audio=15, k=k,
+        niter = args.niter
+        for _ in range(niter):
+            dataset = build_dataset3(signal, noise, sec_of_audio=30, k=k,
                 training_data_size=args.minibatches,
                 minibatch_size=args.minibatchsize, specbinnum=pa_mag.specbinnum,
                 numtimebins=pa_mag.numtimebins,
@@ -128,7 +131,7 @@ if __name__ == '__main__':
                 # indx_phase.set_value(0)
 
                 for batch_idx in range(args.minibatches):
-                    print 'SNR = {}, Starting dataset {}/32, epoch {}/{}, batch {}/{}'.format(args.snr[snr_idx], _+1, epoch+1, numepochs, batch_idx+1, args.minibatches)
+                    print 'SNR = {}, Starting dataset {}/{}, epoch {}/{}, batch {}/{}'.format(args.snr[snr_idx], _+1, niter, epoch+1, numepochs, batch_idx+1, args.minibatches)
                     loss_mag += train_fn_mag(dataset['training_data_magnitude'][batch_idx, :, :, :, :],
                         training_labels[batch_idx, :, :])
                     loss_phase += train_fn_phase(dataset['training_data_phase'][batch_idx, :, :, :, :],
@@ -146,9 +149,13 @@ if __name__ == '__main__':
                     """
                     prediction_mag = predict_fn_mag(sample_mag)
                     prediction_phase = predict_fn_phase(sample_phase)
+                    Snoisy = normalize(calculate_time_signal(dataset_['noise_magnitude'][:, idx:idx+pa_mag.numtimebins], dataset_['noise_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
                     Sdc = normalize(calculate_time_signal(prediction_mag, dataset_['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
                     Scd = normalize(calculate_time_signal(dataset_['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
                     Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
+                     
+                    print 'baseline mse: ', baseline_mse
+                    print '\tMSE noisy: ', mean_squared_error(Scc, Snoisy)
                     print '\tMSE Sdc: ', mean_squared_error(Scc, Sdc)
                     print '\tMSE Scd: ', mean_squared_error(Scc, Scd)
                     print '\tMSE Sdd: ', mean_squared_error(Scc, Sdd)
