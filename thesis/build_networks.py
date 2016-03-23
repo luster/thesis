@@ -134,9 +134,8 @@ class PartitionedAutoencoder(object):
 
         indx = theano.shared(0)
         update_args = {
-            'adadelta': (lasagne.updates.adadelta, {
-                'learning_rate': 0.01, 'rho': 0.4, 'epsilon': 1e-6,
-            }),
+            'adadelta': (lasagne.updates.adadelta, {'learning_rate': 0.01, 'rho': 0.4, 'epsilon': 1e-6,}),
+            'adam': (lasagne.updates.adam, {},),
         }[updates]
         update_func, update_params = update_args[0], update_args[1]
 
@@ -151,6 +150,28 @@ class PartitionedAutoencoder(object):
             allow_input_downcast=True,
         )
         return indx, train_fn
+
+    def normalize_batches(self, training_data):
+        self.normlayer.set_normalisation(training_data)
+
+    def train_fn_slim(self, updates='adadelta'):
+        loss = self.loss_func()
+        update_args = {
+            'adadelta': (lasagne.updates.adadelta, {
+                'learning_rate': 0.01, 'rho': 0.4, 'epsilon': 1e-6,
+            }),
+            'adam': (lasagne.updates.adam, {},),
+        }[updates]
+        update_func, update_params = update_args[0], update_args[1]
+
+        params = lasagne.layers.get_all_params(self.network, trainable=True)
+        updates = update_func(loss, params, **update_params)
+        train_fn = theano.function([self.input_var, self.soft_output_var],
+            loss, updates=updates,
+            allow_input_downcast=True,
+        )
+        return train_fn
+
 
 if __name__ == '__main__':
     import argparse

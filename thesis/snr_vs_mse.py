@@ -89,8 +89,9 @@ if __name__ == '__main__':
         noisy = normalize(noisy, Scc)
 
         # normalize/get train functions
-        indx_mag, train_fn_mag = pa_mag.train_fn(dataset_['training_data_magnitude'], training_labels, 'adadelta')
-        indx_phase, train_fn_phase = pa_phase.train_fn(dataset_['training_data_phase'], training_labels, 'adadelta')
+        # indx_mag, train_fn_mag = pa_mag.train_fn(dataset_['training_data_magnitude'], training_labels, 'adadelta')
+        # indx_phase, train_fn_phase = pa_phase.train_fn(dataset_['training_data_phase'], training_labels, 'adadelta')
+        training_labels = training_labels.reshape(training_labels.shape[0], training_labels.shape[1], 1)
 
         # reconstruction functions
         test_prediction_mag = lasagne.layers.get_output(pa_mag.network, deterministic=True, reconstruct=True)
@@ -106,28 +107,32 @@ if __name__ == '__main__':
         sample_mag = np.array([[dataset_['signal_magnitude'][:, idx:idx+pa_mag.numtimebins]]], dtype)
         sample_phase = np.array([[dataset_['signal_phase'][:, idx:idx+pa_mag.numtimebins]]], dtype)
 
+        train_fn_mag = pa_mag.train_fn_slim('adam')
+        train_fn_phase = pa_phase.train_fn_slim('adam')
 
-        for _ in range(16):
+        for _ in range(512):
             dataset = build_dataset3(signal, noise, sec_of_audio=15, k=k,
                 training_data_size=args.minibatches,
                 minibatch_size=args.minibatchsize, specbinnum=pa_mag.specbinnum,
                 numtimebins=pa_mag.numtimebins,
                 n_noise_only_examples=int(args.minibatchsize / 4), index=0)
-            # normalize/get train functions
-            indx_mag, train_fn_mag = pa_mag.train_fn(dataset['training_data_magnitude'], training_labels, 'adadelta')
-            indx_phase, train_fn_phase = pa_phase.train_fn(dataset['training_data_phase'], training_labels, 'adadelta')
+            # normalize
+            pa_mag.normalize_batches(dataset['training_data_magnitude'])
+            pa_phase.normalize_batches(dataset['training_data_phase'])
 
             # train network(s)
             for epoch in xrange(numepochs):
                 loss_mag = 0
                 loss_phase = 0
-                indx_mag.set_value(0)
-                indx_phase.set_value(0)
+                # indx_mag.set_value(0)
+                # indx_phase.set_value(0)
 
                 for batch_idx in range(args.minibatches):
-                    print 'Starting dataset {}/32, epoch {}/{}, batch {}/{}'.format(_+1, epoch+1, numepochs, batch_idx+1, args.minibatches)
-                    loss_mag += train_fn_mag()
-                    loss_phase += train_fn_phase()
+                    print 'SNR = {}, Starting dataset {}/32, epoch {}/{}, batch {}/{}'.format(args.snr[snr_idx], _+1, epoch+1, numepochs, batch_idx+1, args.minibatches)
+                    loss_mag += train_fn_mag(dataset['training_data_magnitude'][batch_idx, :, :, :, :],
+                        training_labels[batch_idx, :, :])
+                    loss_phase += train_fn_phase(dataset['training_data_phase'][batch_idx, :, :, :, :],
+                        training_labels[batch_idx, :, :])
                 lossreadout_mag = loss_mag / data_len
                 lossreadout_phase = loss_phase / data_len
                 infostring = "Epoch %d/%d: mag Loss %g, phase loss %g" % (epoch, numepochs, lossreadout_mag, lossreadout_phase)
