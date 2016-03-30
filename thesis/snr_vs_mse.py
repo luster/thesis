@@ -75,7 +75,7 @@ if __name__ == '__main__':
 
     folder = os.path.join('sim', datetime.now(pytz.timezone('America/New_York')).strftime('%Y-%m-%d_%H-%M'))
     if not os.path.exists(folder):
-        os.path.makedirs(folder)
+        os.makedirs(folder)
     with open(os.path.join(folder, 'config.txt'), 'a') as f:
         f.write('pa_mag.__dict__ : \n')
         pprint(pa_mag.__dict__, stream=f)
