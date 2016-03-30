@@ -78,7 +78,11 @@ class TimeDomainOutputPartitionedAutoencoder(PartitionedAutoencoder):
 
         # output_size
         num_time_samples = int(audioframe_len/2 * (self.numtimebins + 1))
-        network = batch_norm(DenseLayer(network, num_time_samples))
+        # network = batch_norm(DenseLayer(network, num_time_samples))  # MemoryError
+        network, _ = custom_convlayer_2(network, in_num_chans=self.specbinnum, out_num_chans=num_time_samples)
+        network, _ = batch_norm(network)
+        network, _ = custom_convlayer_2(network, in_num_chans=num_time_samples, out_num_chans=1)
+        network, _ = batch_norm(network)
 
         self.network = network
 
@@ -114,7 +118,7 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--niter', type=int, default=8)
     parser.add_argument('-e', '--epochs', type=int, default=8)
     parser.add_argument('-u', '--updates', type=str, default='adam')
-    parser.add_argument('-m', '--minibatches', type=int, default=192)
+    parser.add_argument('-m', '--minibatches', type=int, default=96)
     parser.add_argument('-b', '--minibatchsize', type=int, default=16)
     parser.add_argument('-k', '--snr', type=float, nargs='+', default=[-3,0,3,6,9,12])
     parser.add_argument('-t', '--timesignal', type=bool, default=True)

@@ -84,8 +84,8 @@ class PartitionedAutoencoder(object):
         # self.loss = self.loss_func(n_noise_only_examples)
 
         # initialize training data shared variables (memory optimization)
-        self.training_labels_shared = theano.shared(np.zeros((self.num_minibatches, self.minibatch_size,1), dtype=dtype), borrow=True)
-        self.training_data_shared = theano.shared(np.zeros((self.num_minibatches, self.minibatch_size, 1, self.specbinnum, self.numtimebins), dtype=dtype), borrow=True)
+        # self.training_labels_shared = theano.shared(np.zeros((self.num_minibatches, self.minibatch_size,1), dtype=dtype), borrow=True)
+        # self.training_data_shared = theano.shared(np.zeros((self.num_minibatches, self.minibatch_size, 1, self.specbinnum, self.numtimebins), dtype=dtype), borrow=True)
 
     def initialize_network(self):
         network = lasagne.layers.InputLayer((None, 1, self.specbinnum, self.numtimebins), self.input_var)
@@ -126,31 +126,31 @@ class PartitionedAutoencoder(object):
         loss = (loss.mean() + lambduh/self.mean_C * regularization_term).mean()
         return loss
 
-    def train_fn(self, training_data, training_labels, updates='adadelta'):
-        self.training_labels_shared.set_value(training_labels.reshape(training_labels.shape[0], training_labels.shape[1], 1), borrow=True)
-        self.training_data_shared.set_value(np.asarray(training_data, dtype=dtype), borrow=True)
-        self.normlayer.set_normalisation(training_data)
+    # def train_fn(self, training_data, training_labels, updates='adadelta'):
+    #     self.training_labels_shared.set_value(training_labels.reshape(training_labels.shape[0], training_labels.shape[1], 1), borrow=True)
+    #     self.training_data_shared.set_value(np.asarray(training_data, dtype=dtype), borrow=True)
+    #     self.normlayer.set_normalisation(training_data)
 
-        loss = self.loss_func()
+    #     loss = self.loss_func()
 
-        indx = theano.shared(0)
-        update_args = {
-            'adadelta': (lasagne.updates.adadelta, {'learning_rate': 0.01, 'rho': 0.4, 'epsilon': 1e-6,}),
-            'adam': (lasagne.updates.adam, {},),
-        }[updates]
-        update_func, update_params = update_args[0], update_args[1]
+    #     indx = theano.shared(0)
+    #     update_args = {
+    #         'adadelta': (lasagne.updates.adadelta, {'learning_rate': 0.01, 'rho': 0.4, 'epsilon': 1e-6,}),
+    #         'adam': (lasagne.updates.adam, {},),
+    #     }[updates]
+    #     update_func, update_params = update_args[0], update_args[1]
 
-        params = lasagne.layers.get_all_params(self.network, trainable=True)
-        updates = update_func(loss, params, **update_params)
-        updates[indx] = indx + 1
-        train_fn = theano.function([], loss, updates=updates,
-            givens={
-                self.input_var: self.training_data_shared[indx, :, :, :, :],
-                self.soft_output_var: self.training_labels_shared[indx, :, :],
-            },
-            allow_input_downcast=True,
-        )
-        return indx, train_fn
+    #     params = lasagne.layers.get_all_params(self.network, trainable=True)
+    #     updates = update_func(loss, params, **update_params)
+    #     updates[indx] = indx + 1
+    #     train_fn = theano.function([], loss, updates=updates,
+    #         givens={
+    #             self.input_var: self.training_data_shared[indx, :, :, :, :],
+    #             self.soft_output_var: self.training_labels_shared[indx, :, :],
+    #         },
+    #         allow_input_downcast=True,
+    #     )
+    #     return indx, train_fn
 
     def normalize_batches(self, training_data):
         self.normlayer.set_normalisation(training_data)
