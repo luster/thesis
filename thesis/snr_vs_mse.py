@@ -49,7 +49,7 @@ if __name__ == '__main__':
 
     # create network(s)
     pa_mag = PartitionedAutoencoder(num_minibatches=args.minibatches, specbinnum=specbinnum)
-    pa_phase = PartitionedAutoencoder(num_minibatches=args.minibatchsize, specbinnum=specbinnum)
+    pa_phase = PartitionedAutoencoder(num_minibatches=args.minibatches, specbinnum=specbinnum)
     print pa_mag.__dict__
 
     mse_cc = []  # clean reconstruction
