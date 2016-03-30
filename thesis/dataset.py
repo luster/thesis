@@ -132,8 +132,8 @@ def load_soundfiles(signal, noise):
     return x_signal, x_noise
 
 
-def build_dataset3(x_signal, x_noise, sec_of_audio=20, k=0.5, training_data_size=128,
-    minibatch_size=16, specbinnum=128, numtimebins=512, n_noise_only_examples=4, index=0):
+def build_dataset3(x_signal, x_noise, sec_of_audio, k, training_data_size,
+    minibatch_size, specbinnum, numtimebins, n_noise_only_examples, index=0):
 
     dtype = theano.config.floatX
     freq_transform = standard_specgram
