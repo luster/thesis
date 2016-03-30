@@ -75,7 +75,7 @@ if __name__ == '__main__':
     mse_dd = []  # denoised magnitude, denoised phase
     mse_noisy = []  # baseline mse, Y = S + N w.r.t. S
     for snr_idx, k in enumerate(k_values):
-        mse_cc.append(0)
+        # mse_cc.append(0)
         mse_dc.append(0)
         mse_cd.append(0)
         mse_dd.append(0)
