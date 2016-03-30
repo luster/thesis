@@ -53,9 +53,9 @@ class PartitionedAutoencoder(object):
     background_latents_factor: percentage of background latents (0-1)
 
     """
-    def __init__(self, num_minibatches=128, minibatch_size=16, specbinnum=256, numtimebins=512,
-        numfilters=128, use_maxpool=False, mp_down_factor=16,
-        background_latents_factor=0.25, n_noise_only_examples=4):
+    def __init__(self, num_minibatches, minibatch_size, specbinnum, numtimebins,
+        numfilters, use_maxpool, mp_down_factor,
+        background_latents_factor, n_noise_only_examples):
 
         self.num_minibatches = num_minibatches
         self.minibatch_size = minibatch_size

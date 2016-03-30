@@ -37,6 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--minibatches', type=int, default=192)
     parser.add_argument('-b', '--minibatchsize', type=int, default=16)
     parser.add_argument('-k', '--snr', type=float, nargs='+', default=[-3,0,3,6,9,12])
+    parser.add_argument('-f', '--timebins', type=int, default=512)
     parser.add_argument('-t', '--timesignal', type=bool, default=True)
     parser.add_argument('-s', '--signal', type=str, default='../data/chon/signal_44.wav')
     parser.add_argument('-n', '--noise', type=str, default='../data/chon/noise_44.wav')
@@ -48,8 +49,24 @@ if __name__ == '__main__':
     signal, noise = load_soundfiles(args.signal, args.noise)
 
     # create network(s)
-    pa_mag = PartitionedAutoencoder(num_minibatches=args.minibatches, specbinnum=specbinnum)
-    pa_phase = PartitionedAutoencoder(num_minibatches=args.minibatches, specbinnum=specbinnum)
+    pa_mag = PartitionedAutoencoder(num_minibatches=args.minibatches,
+        minibatch_size=args.minibatchsize,
+        specbinnum=specbinnum,
+        numtimebins=args.timebins,
+        numfilters=128,
+        use_maxpool=False,
+        mp_down_factor=16,
+        background_latents_factor=0.25,
+        n_noise_only_examples=int(0.25*args.minibatchsize))
+    pa_phase = PartitionedAutoencoder(num_minibatches=args.minibatches,
+        minibatch_size=args.minibatchsize,
+        specbinnum=specbinnum,
+        numtimebins=args.timebins,
+        numfilters=128,
+        use_maxpool=False,
+        mp_down_factor=16,
+        background_latents_factor=0.25,
+        n_noise_only_examples=int(0.25*args.minibatchsize))
     print pa_mag.__dict__
 
     mse_cc = []  # clean reconstruction
