@@ -153,7 +153,7 @@ if __name__ == '__main__':
                     Sdc = normalize(calculate_time_signal(prediction_mag, dataset_['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
                     Scd = normalize(calculate_time_signal(dataset_['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
                     Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
-                     
+
                     print 'baseline mse: ', baseline_mse
                     print '\tMSE noisy: ', mean_squared_error(Scc, Snoisy)
                     print '\tMSE Sdc: ', mean_squared_error(Scc, Sdc)

@@ -168,6 +168,8 @@ def build_dataset3(x_signal, x_noise, sec_of_audio=20, k=0.5, training_data_size
     training_data_magnitude = np.zeros((training_data_size, minibatch_size, 1, specbinnum, numtimebins), dtype=dtype)
     training_data_phase = np.copy(training_data_magnitude)
     training_labels = np.zeros((training_data_size, minibatch_size), dtype=dtype)
+    num_time_samples = int(audioframe_len/2 * (self.numtimebins + 1))
+    training_data_time = np.zeros((training_data_size, minibatch_size, 1, num_time_samples))
 
     noise_minibatch_range = range(n_noise_only_examples)
 
@@ -177,18 +179,26 @@ def build_dataset3(x_signal, x_noise, sec_of_audio=20, k=0.5, training_data_size
                 specgram = noise_specgram
                 phasegram = noise_phasegram
                 label = background
+                timesig = x_noise
             else:
                 specgram = signal_specgram
                 phasegram = signal_phasegram
                 label = foreground
+                timesig = x_signal
             startindex = np.random.randint(specgram.shape[1] - numtimebins)
+            time_start = int(audioframe_len/2 * (startindex + 1) - audioframe_len/2)
+            time_end = time_start + num_time_samples
+
             training_data_magnitude[which_training_batch, which_training_datum, :, :, :] = specgram[:, startindex:startindex+numtimebins]
             training_data_phase[which_training_batch, which_training_datum, :, :, :] = phasegram[:, startindex:startindex+numtimebins]
             training_labels[which_training_batch, which_training_datum] = label
+            training_data_time[which_training_datum, which_training_datum, :, :] = timesig[start:end]
+
     return {
         'training_labels': training_labels,
         'training_data_magnitude': training_data_magnitude,
         'training_data_phase': training_data_phase,
+        'training_data_time': training_data_time,
         'clean_magnitude': clean_specgram,
         'clean_phase': clean_phasegram,
         'signal_magnitude': signal_specgram,

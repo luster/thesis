@@ -54,7 +54,7 @@ class PartitionedAutoencoder(object):
 
     """
     def __init__(self, num_minibatches=128, minibatch_size=16, specbinnum=256, numtimebins=512,
-        numfilters=256, use_maxpool=False, mp_down_factor=16,
+        numfilters=128, use_maxpool=False, mp_down_factor=16,
         background_latents_factor=0.25, n_noise_only_examples=4):
 
         self.num_minibatches = num_minibatches
@@ -70,6 +70,7 @@ class PartitionedAutoencoder(object):
 
         # theano variables
         self.input_var = T.tensor4('X')
+        self.input_time_var = T.tensor4('xt')
         self.soft_output_var = T.matrix('y')
         self.idx = T.iscalar()
 

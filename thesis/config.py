@@ -4,9 +4,9 @@ from glob import glob
 
 import numpy as np
 import theano
-import theano.tensor as T
+# import theano.tensor as T
 
-import lasagne
+# import lasagne
 
 use_complex = False
 if use_complex:
