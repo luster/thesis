@@ -58,6 +58,11 @@ if __name__ == '__main__':
     mse_dd = []  # denoised magnitude, denoised phase
     mse_noisy = []  # baseline mse, Y = S + N w.r.t. S
     for snr_idx, k in enumerate(k_values):
+        mse_cc.append(0)
+        mse_dc.append(0)
+        mse_cd.append(0)
+        mse_dd.append(0)
+        mse_noisy.append(0)
         # reinitialize networks
         if snr_idx > 0:
             pa_mag.initialize_network()
@@ -163,32 +168,32 @@ if __name__ == '__main__':
                     latentsval_phase = latents_fn_phase(sample_phase)
                     latentsval_mag = latents_fn_mag(sample_mag)
 
-        # normalize signals with respect to clean reconstruction
-        Sdc = normalize(calculate_time_signal(prediction_mag, dataset_['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
-        Scd = normalize(calculate_time_signal(dataset_['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
-        Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
-        # save wav files
-        scikits.audiolab.wavwrite(noisy, 'wav/out_noisy_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
-        scikits.audiolab.wavwrite(Scc, 'wav/out_Scc_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
-        scikits.audiolab.wavwrite(Sdc, 'wav/out_Sdc_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
-        scikits.audiolab.wavwrite(Scd, 'wav/out_Scd_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
-        scikits.audiolab.wavwrite(Sdd, 'wav/out_Sdd_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
-        # add mses to lists for plotting
-        mse_dc.append(mean_squared_error(Scc, Sdc))
-        mse_cd.append(mean_squared_error(Scc, Scd))
-        mse_dd.append(mean_squared_error(Scc, Sdd))
-        mse_noisy.append(mean_squared_error(Scc, noisy))
-        # save model
-        np.savez('npz/network_mag_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_mag.network))
-        np.savez('npz/latents_mag_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_mag.latents))
-        np.savez('npz/network_phase_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_phase.network))
-        np.savez('npz/latents_phase_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_phase.latents))
+                    # # normalize signals with respect to clean reconstruction
+                    # Sdc = normalize(calculate_time_signal(prediction_mag, dataset_['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
+                    # Scd = normalize(calculate_time_signal(dataset_['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
+                    # Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
+                    # save wav files
+                    scikits.audiolab.wavwrite(noisy, 'wav/out_noisy_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
+                    scikits.audiolab.wavwrite(Scc, 'wav/out_Scc_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
+                    scikits.audiolab.wavwrite(Sdc, 'wav/out_Sdc_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
+                    scikits.audiolab.wavwrite(Scd, 'wav/out_Scd_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
+                    scikits.audiolab.wavwrite(Sdd, 'wav/out_Sdd_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
+                    # add mses to lists for plotting
+                    mse_dc[snr_idx] = mean_squared_error(Scc, Sdc)
+                    mse_cd[snr_idx] = mean_squared_error(Scc, Scd)
+                    mse_dd[snr_idx] = mean_squared_error(Scc, Sdd)
+                    mse_noisy[snr_idx] = mean_squared_error(Scc, noisy)
+                    # save model
+                    np.savez('npz/network_mag_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_mag.network))
+                    np.savez('npz/latents_mag_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_mag.latents))
+                    np.savez('npz/network_phase_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_phase.network))
+                    np.savez('npz/latents_phase_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_phase.latents))
 
-    print mse_cc
-    print mse_dc
-    print mse_cd
-    print mse_dd
-    print mse_noisy
+                    print mse_cc
+                    print mse_dc
+                    print mse_cd
+                    print mse_dd
+                    print mse_noisy
     # plot MSE vs. SNR for various reconstructions
     plt.figure()
     plt.xlabel('SNR (dB)')

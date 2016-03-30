@@ -7,8 +7,8 @@ import numpy as np
 import theano
 import theano.tensor as T
 
-from conv_layer import custom_convlayer
-from lasagne.nonlinearities import rectify
+from conv_layer import custom_convlayer_2
+from lasagne.nonlinearities import rectify, elu
 from norm_layer import NormalisationLayer
 from dataset import build_dataset2
 from plot import make_plots
@@ -91,12 +91,12 @@ class PartitionedAutoencoder(object):
         network = lasagne.layers.InputLayer((None, 1, self.specbinnum, self.numtimebins), self.input_var)
         network = NormalisationLayer(network, self.specbinnum)
         self.normlayer = network
-        network, _ = custom_convlayer(network, in_num_chans=self.specbinnum, out_num_chans=self.numfilters)
-        network = lasagne.layers.NonlinearityLayer(network, nonlinearity=rectify)
-        if self.use_maxpool:
-            mp_down_factor = self.maxpooling_downsample_factor
-            network = lasagne.layers.MaxPool2DLayer(network, pool_size=(1, self.mp_down_factor), stride=(1, self.mp_down_factor))
-            maxpool_layer = network
+        network, _ = custom_convlayer_2(network, in_num_chans=self.specbinnum, out_num_chans=self.numfilters)
+        network = lasagne.layers.NonlinearityLayer(network, nonlinearity=elu)
+        # if self.use_maxpool:
+        #     mp_down_factor = self.maxpooling_downsample_factor
+        #     network = lasagne.layers.MaxPool2DLayer(network, pool_size=(1, self.mp_down_factor), stride=(1, self.mp_down_factor))
+        #     maxpool_layer = network
         self.latents = network
         network = ZeroOutBackgroundLatentsLayer(self.latents,
             mp_down_factor=self.mp_down_factor,
@@ -104,9 +104,9 @@ class PartitionedAutoencoder(object):
             numtimebins=self.numtimebins,
             background_latents_factor=self.background_latents_factor,
             use_maxpool=self.use_maxpool)
-        if self.use_maxpool:
-            network = lasagne.layers.InverseLayer(network, maxpool_layer)
-        self.network, _ = custom_convlayer(network, in_num_chans=self.numfilters, out_num_chans=self.specbinnum)
+        # if self.use_maxpool:
+        #     network = lasagne.layers.InverseLayer(network, maxpool_layer)
+        self.network, _ = custom_convlayer_2(network, in_num_chans=self.numfilters, out_num_chans=self.specbinnum)
 
     def get_output(self):
         return lasagne.layers.get_output(self.network)
