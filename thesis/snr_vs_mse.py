@@ -204,11 +204,16 @@ if __name__ == '__main__':
                     # Scd = normalize(calculate_time_signal(dataset_['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
                     # Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
                     # save wav files
-                    scikits.audiolab.wavwrite(noisy, os.path.join(folder,'wav/out_noisy_%s.wav') % args.snr[snr_idx], fs=srate, enc='pcm16')
-                    scikits.audiolab.wavwrite(Scc, os.path.join(folder,'wav/out_Scc_%s.wav') % args.snr[snr_idx], fs=srate, enc='pcm16')
-                    scikits.audiolab.wavwrite(Sdc, os.path.join(folder,'wav/out_Sdc_%s.wav') % args.snr[snr_idx], fs=srate, enc='pcm16')
-                    scikits.audiolab.wavwrite(Scd, os.path.join(folder,'wav/out_Scd_%s.wav') % args.snr[snr_idx], fs=srate, enc='pcm16')
-                    scikits.audiolab.wavwrite(Sdd, os.path.join(folder,'wav/out_Sdd_%s.wav') % args.snr[snr_idx], fs=srate, enc='pcm16')
+                    with open(os.path.join(folder,'wav/out_noisy_%s.wav') % args.snr[snr_idx], 'wb') as xyz:
+                        scikits.audiolab.wavwrite(noisy, xyz, fs=srate, enc='pcm16')
+                    with open(os.path.join(folder,'wav/out_Scc_%s.wav') % args.snr[snr_idx], 'wb') as xyz:
+                        scikits.audiolab.wavwrite(Scc, xyz, fs=srate, enc='pcm16')
+                    with open(os.path.join(folder,'wav/out_Sdc_%s.wav') % args.snr[snr_idx], 'wb') as xyz:
+                        scikits.audiolab.wavwrite(Sdc, xyz, fs=srate, enc='pcm16')
+                    with open(os.path.join(folder,'wav/out_Scd_%s.wav') % args.snr[snr_idx], 'wb') as xyz:
+                        scikits.audiolab.wavwrite(Scd, xyz, fs=srate, enc='pcm16')
+                    with open(os.path.join(folder,'wav/out_Sdd_%s.wav') % args.snr[snr_idx], 'wb') as xyz:
+                        scikits.audiolab.wavwrite(Sdd, xyz, fs=srate, enc='pcm16')
                     # add mses to lists for plotting
                     mse_dc[snr_idx] = mean_squared_error(Scc, Sdc)
                     mse_cd[snr_idx] = mean_squared_error(Scc, Scd)
