@@ -1,7 +1,12 @@
 from __future__ import division
 
+from datetime import datetime
+import pytz
+from pprint import pprint
+
 import scikits.audiolab
 import numpy as np
+import os
 import sys
 from datetime import datetime
 
@@ -67,6 +72,15 @@ if __name__ == '__main__':
         mp_down_factor=16,
         background_latents_factor=0.25,
         n_noise_only_examples=int(0.25*args.minibatchsize))
+
+    folder = os.path.join('sim', datetime.now(pytz.timezone('America/New_York')).strftime('%Y-%m-%d_%H-%M'))
+    if not os.path.exists(folder):
+        os.path.makedirs(folder)
+    with open(os.path.join(folder, 'config.txt'), 'a') as f:
+        f.write('pa_mag.__dict__ : \n')
+        pprint(pa_mag.__dict__, stream=f)
+        f.write('args : \n')
+        pprint(args.__dict__, stream=f)
     print pa_mag.__dict__
 
     mse_cc = []  # clean reconstruction
@@ -190,27 +204,38 @@ if __name__ == '__main__':
                     # Scd = normalize(calculate_time_signal(dataset_['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
                     # Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
                     # save wav files
-                    scikits.audiolab.wavwrite(noisy, 'wav/out_noisy_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
-                    scikits.audiolab.wavwrite(Scc, 'wav/out_Scc_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
-                    scikits.audiolab.wavwrite(Sdc, 'wav/out_Sdc_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
-                    scikits.audiolab.wavwrite(Scd, 'wav/out_Scd_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
-                    scikits.audiolab.wavwrite(Sdd, 'wav/out_Sdd_%s.wav' % args.snr[snr_idx], fs=srate, enc='pcm16')
+                    scikits.audiolab.wavwrite(noisy, os.path.join(folder,'wav/out_noisy_%s.wav') % args.snr[snr_idx], fs=srate, enc='pcm16')
+                    scikits.audiolab.wavwrite(Scc, os.path.join(folder,'wav/out_Scc_%s.wav') % args.snr[snr_idx], fs=srate, enc='pcm16')
+                    scikits.audiolab.wavwrite(Sdc, os.path.join(folder,'wav/out_Sdc_%s.wav') % args.snr[snr_idx], fs=srate, enc='pcm16')
+                    scikits.audiolab.wavwrite(Scd, os.path.join(folder,'wav/out_Scd_%s.wav') % args.snr[snr_idx], fs=srate, enc='pcm16')
+                    scikits.audiolab.wavwrite(Sdd, os.path.join(folder,'wav/out_Sdd_%s.wav') % args.snr[snr_idx], fs=srate, enc='pcm16')
                     # add mses to lists for plotting
                     mse_dc[snr_idx] = mean_squared_error(Scc, Sdc)
                     mse_cd[snr_idx] = mean_squared_error(Scc, Scd)
                     mse_dd[snr_idx] = mean_squared_error(Scc, Sdd)
                     mse_noisy[snr_idx] = mean_squared_error(Scc, noisy)
                     # save model
-                    np.savez('npz/network_mag_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_mag.network))
-                    np.savez('npz/latents_mag_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_mag.latents))
-                    np.savez('npz/network_phase_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_phase.network))
-                    np.savez('npz/latents_phase_snr_%s.npz' % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_phase.latents))
+                    np.savez(os.path.join(folder,'npz/network_mag_snr_%s.npz') % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_mag.network))
+                    np.savez(os.path.join(folder,'npz/latents_mag_snr_%s.npz') % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_mag.latents))
+                    np.savez(os.path.join(folder,'npz/network_phase_snr_%s.npz') % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_phase.network))
+                    np.savez(os.path.join(folder,'npz/latents_phase_snr_%s.npz') % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_phase.latents))
 
                     print mse_cc
                     print mse_dc
                     print mse_cd
                     print mse_dd
                     print mse_noisy
+    with open(os.path.join(folder, 'config.txt'), 'a') as f:
+        f.write('mse_cc: \n')
+        pprint(mse_cc, stream=f)
+        f.write('mse_dc: \n')
+        pprint(mse_dc, stream=f)
+        f.write('mse_cd: \n')
+        pprint(mse_cd, stream=f)
+        f.write('mse_dd: \n')
+        pprint(mse_dd, stream=f)
+        f.write('mse_noisy: \n')
+        pprint(mse_noisy, stream=f)
     # plot MSE vs. SNR for various reconstructions
     plt.figure()
     plt.xlabel('SNR (dB)')
@@ -222,6 +247,6 @@ if __name__ == '__main__':
     plt.plot(args.snr, mse_dd)
     plt.plot(args.snr, mse_noisy)
     plt.legend(['Baseline', 'Denoised Mag, Clean Phase', 'Clean Mag, Denoised Phase', 'Denoised Mag, Denoised Phase', 'Noisy'], loc=3)
-    plt.savefig('snr_mse.png')
-    plt.savefig('snr_mse.pdf')
+    plt.savefig(os.path.join(folder, 'snr_mse.png'))
+    plt.savefig(os.path.join(folder, 'snr_mse.pdf'))
     # plt.show()
