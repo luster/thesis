@@ -204,6 +204,9 @@ if __name__ == '__main__':
                     # Scd = normalize(calculate_time_signal(dataset_['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
                     # Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
                     # save wav files
+                    # create dir first
+                    if not os.path.exists(os.path.join(folder, 'wav')):
+                        os.makedirs(os.path.join(folder, 'wav'))
                     with open(os.path.join(folder,'wav/out_noisy_%s.wav') % args.snr[snr_idx], 'wb') as xyz:
                         scikits.audiolab.wavwrite(noisy, xyz, fs=srate, enc='pcm16')
                     with open(os.path.join(folder,'wav/out_Scc_%s.wav') % args.snr[snr_idx], 'wb') as xyz:
