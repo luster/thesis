@@ -1,21 +1,25 @@
 # thesis
 Repo for Master's Thesis at The Cooper Union
 
-## Basic ideas
-- more observations (more recordings)
-- implies more information
-- implies higher quality
+## Denoising concert recordings
 
-The thesis is going to concern getting from more information to higher quality. For speech, this would result in better word error rates, less distortion, higher perceived quality. For other audio like music, this would result in less distortion/noise and higher perceived quality.
+Objective: remove noise from single-channel recordings of concerts without access to an original recording. Weak labels come in the form of segments of audio labeled as "noise only" or "noise and signal."
 
-## Getting there
+## Currently working on
 
-First steps:
-- read some Hinton papers (the guy who did lots of autoencoder stuff and denoising)
-- setup Theano
-- take known signals (sine waves, sample audio clips)
-- apply random channel
-- add gaussian noise
-- split into windowed frames
-- pass each through autoencoder
-- (sequence of autoencoders)
+- Save models/plots/recordings more often
+- Code to import model parameters from .npz files
+- Characterize distortion using a trained model on sine waves/chirps
+- Save specgram, time domain, and latent var plots
+- Organized folder structure based on parameters/date
+- Early stopping
+- Try a deeper network (more conv layers, maybe fully connected layers at the output)
+- Output the network in the time domain, modify loss function to do MSE on the time domain signal
+
+## Links (TBD)
+
+- Paper
+- Presentation
+- Relevant papers
+- Relevant plots
+- GitHub pages static stie
