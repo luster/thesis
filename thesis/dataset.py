@@ -166,7 +166,7 @@ def build_dataset3(x_signal, x_noise, sec_of_audio, k, training_data_size,
     clean_specgram, clean_phasegram = freq_transform(x_clean)
 
     training_data_magnitude = np.zeros((training_data_size, minibatch_size, 1, specbinnum, numtimebins), dtype=dtype)
-    training_data_phase = np.copy(training_data_magnitude)
+    training_data_phase = np.zeros((training_data_size, minibatch_size, 1, specbinnum, numtimebins), dtype=dtype)
     training_labels = np.zeros((training_data_size, minibatch_size), dtype=dtype)
     num_time_samples = int(audioframe_len/2 * (numtimebins + 1))
     training_data_time = np.zeros((training_data_size, minibatch_size, 1, 1, num_time_samples))
