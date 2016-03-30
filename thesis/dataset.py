@@ -193,7 +193,7 @@ def build_dataset3(x_signal, x_noise, sec_of_audio, k, training_data_size,
             training_data_phase[which_training_batch, which_training_datum, :, :, :] = phasegram[:, startindex:startindex+numtimebins]
             training_labels[which_training_batch, which_training_datum] = label
             # import ipdb; ipdb.set_trace()
-            training_data_time[which_training_datum, which_training_datum, :, :, :] = timesig[time_start:time_end]
+            training_data_time[which_training_batch, which_training_datum, :, :, :] = timesig[time_start:time_end]
 
     return {
         'training_labels': training_labels,
