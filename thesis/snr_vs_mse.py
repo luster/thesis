@@ -115,8 +115,8 @@ if __name__ == '__main__':
 
         # clean signal (baseline)
         idx = 110
-        start = audioframe_len/2 * (idx + 1) - audioframe_len/2
-        end = start + audioframe_len/2 * (pa_mag.numtimebins + 1)  #+ 1
+        start = int(audioframe_len/2 * (idx + 1) - audioframe_len/2)
+        end = int(start + audioframe_len/2 * (pa_mag.numtimebins + 1))  #+ 1
         clean = calculate_time_signal(dataset_['clean_magnitude'], dataset_['clean_phase'])
         Scc = normalize(clean, dataset_['clean_time_signal'])[start:end]
         baseline_mse = mean_squared_error(dataset_['clean_time_signal'][start:end], Scc)
