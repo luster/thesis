@@ -63,7 +63,7 @@ if __name__ == '__main__':
         mp_down_factor=16,
         background_latents_factor=0.25,
         n_noise_only_examples=int(0.25*args.minibatchsize))
-    pa_phase = PartitionedAutoencoder(num_minibatches=args.minibatches,
+    pa_phase = PartitionedAutoencoderForPhase(num_minibatches=args.minibatches,
         minibatch_size=args.minibatchsize,
         specbinnum=specbinnum,
         numtimebins=args.timebins,
@@ -113,7 +113,7 @@ if __name__ == '__main__':
         data_len = len(training_labels)
 
         # clean signal (baseline)
-        idx = 105
+        idx = 110
         start = audioframe_len/2 * (idx + 1) - audioframe_len/2
         end = start + audioframe_len/2 * (pa_mag.numtimebins + 1)  #+ 1
         clean = calculate_time_signal(dataset_['clean_magnitude'], dataset_['clean_phase'])

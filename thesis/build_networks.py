@@ -8,7 +8,8 @@ import theano
 import theano.tensor as T
 
 from conv_layer import custom_convlayer_2
-from lasagne.nonlinearities import rectify, elu
+from lasagne.layers import batch_norm
+from lasagne.nonlinearities import rectify, elu, softplus
 from norm_layer import NormalisationLayer
 from dataset import build_dataset2
 from plot import make_plots
@@ -91,7 +92,12 @@ class PartitionedAutoencoder(object):
         network = lasagne.layers.InputLayer((None, 1, self.specbinnum, self.numtimebins), self.input_var)
         network = NormalisationLayer(network, self.specbinnum)
         self.normlayer = network
-        network, _ = custom_convlayer_2(network, in_num_chans=self.specbinnum, out_num_chans=self.numfilters)
+
+        # intermediate layer size
+        ils = int((self.specbinnum + self.numfilters) / 2)
+        network, _ = custom_convlayer_2(network, in_num_chans=self.specbinnum, out_num_chans=ils)
+        network = batch_norm(network)
+        network, _ = custom_convlayer_2(network, in_num_chans=ils, out_num_chans=self.numfilters)
         network = lasagne.layers.NonlinearityLayer(network, nonlinearity=elu)
         # if self.use_maxpool:
         #     mp_down_factor = self.maxpooling_downsample_factor
@@ -106,7 +112,12 @@ class PartitionedAutoencoder(object):
             use_maxpool=self.use_maxpool)
         # if self.use_maxpool:
         #     network = lasagne.layers.InverseLayer(network, maxpool_layer)
-        self.network, _ = custom_convlayer_2(network, in_num_chans=self.numfilters, out_num_chans=self.specbinnum)
+        network, _ = custom_convlayer_2(network, in_num_chans=self.numfilters, out_num_chans=ils)
+        network = batch_norm(network)
+        network, _ = custom_convlayer_2(network, in_num_chans=ils, out_num_chans=self.specbinnum, nonlinearity=softplus)
+        network = batch_norm(network)
+
+        self.network = network
 
     def get_output(self):
         return lasagne.layers.get_output(self.network)
@@ -172,52 +183,3 @@ class PartitionedAutoencoder(object):
             allow_input_downcast=True,
         )
         return train_fn
-
-
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-e', '--epochs', type=int, default=64)
-    parser.add_argument('-u', '--updates', type=str, default='adadelta')
-    parser.add_argument('-m', '--minibatches', type=int, default=128)
-    parser.add_argument('-b', '--minibatchsize', type=int, default=16)
-    parser.add_argument('-k', '--snr', type=float, default=0.5)
-    parser.add_argument('-t', '--timesignal', type=bool, default=True)
-    args = parser.parse_args()
-
-    cts = args.timesignal
-    numepochs = args.epochs
-
-    print 'creating partitioned autoencoder'
-    pa = PartitionedAutoencoder()
-
-    print 'building dataset'
-    training_data, training_labels, noise_specgram, signal_specgram, \
-    x_noise, x_signal, noise_phasegram, signal_phasegram = build_dataset2(
-        use_stft=False, use_simpler_data=True, k=args.snr, training_data_size=args.minibatches,
-        minibatch_size=args.minibatchsize, specbinnum=pa.specbinnum, numtimebins=pa.numtimebins,
-        n_noise_only_examples=args.minibatchsize/4)
-
-    print 'initialize train fn'
-    indx, train_fn = pa.train_fn(training_data, training_labels, 'adadelta')
-
-    dt = datetime.now().strftime('%Y%m%d%H%M')
-
-    print 'training network'
-    for epoch in xrange(numepochs):
-        loss = 0
-        indx.set_value(0)
-        for batch_idx in range(args.minibatches):
-            loss += train_fn()
-        lossreadout = loss / len(training_data)
-        infostring = "Epoch %d/%d: Loss %g" % (epoch, numepochs, lossreadout)
-        print infostring
-        if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch) or epoch % 50 == 0:
-            """generate 4 time signals using networks:
-                    clean mag, clean phase (baseline)
-                    denoised mag, clean phase
-                    clean phase, denoised mag
-                    denoised mag, denoised phase
-                using these signals, compute MSE with respec to baseline
-            """
-            pass
