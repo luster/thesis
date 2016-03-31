@@ -26,6 +26,7 @@ plt.rcParams.update({'font.size': 6})
 from config import audioframe_len, specbinnum, srate
 from dataset import build_dataset3, load_soundfiles
 from build_networks import dtype, PartitionedAutoencoder
+from phase_network import PartitionedAutoencoderForPhase
 from util import calculate_time_signal
 from sklearn.metrics import mean_squared_error
 

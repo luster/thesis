@@ -169,7 +169,7 @@ def build_dataset3(x_signal, x_noise, sec_of_audio, k, training_data_size,
     training_data_phase = np.zeros((training_data_size, minibatch_size, 1, specbinnum, numtimebins), dtype=dtype)
     training_labels = np.zeros((training_data_size, minibatch_size), dtype=dtype)
     num_time_samples = int(audioframe_len/2 * (numtimebins + 1))
-    training_data_time = np.zeros((training_data_size, minibatch_size, 1, 1, num_time_samples))
+    # training_data_time = np.zeros((training_data_size, minibatch_size, 1, 1, num_time_samples))
 
     noise_minibatch_range = range(n_noise_only_examples)
 
@@ -193,13 +193,13 @@ def build_dataset3(x_signal, x_noise, sec_of_audio, k, training_data_size,
             training_data_phase[which_training_batch, which_training_datum, :, :, :] = phasegram[:, startindex:startindex+numtimebins]
             training_labels[which_training_batch, which_training_datum] = label
             # import ipdb; ipdb.set_trace()
-            training_data_time[which_training_batch, which_training_datum, :, :, :] = timesig[time_start:time_end]
+            # training_data_time[which_training_batch, which_training_datum, :, :, :] = timesig[time_start:time_end]
 
     return {
         'training_labels': training_labels,
         'training_data_magnitude': training_data_magnitude,
         'training_data_phase': training_data_phase,
-        'training_data_time': training_data_time,
+        # 'training_data_time': training_data_time,
         'clean_magnitude': clean_specgram,
         'clean_phase': clean_phasegram,
         'signal_magnitude': signal_specgram,
