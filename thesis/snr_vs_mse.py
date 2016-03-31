@@ -218,6 +218,8 @@ if __name__ == '__main__':
                     mse_dd[snr_idx] = mean_squared_error(Scc, Sdd)
                     mse_noisy[snr_idx] = mean_squared_error(Scc, noisy)
                     # save model
+                    if not os.path.exists(os.path.join(folder, 'npz')):
+                        os.makedirs(os.path.join(folder, 'npz'))
                     np.savez(os.path.join(folder,'npz/network_mag_snr_%s.npz') % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_mag.network))
                     np.savez(os.path.join(folder,'npz/latents_mag_snr_%s.npz') % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_mag.latents))
                     np.savez(os.path.join(folder,'npz/network_phase_snr_%s.npz') % args.snr[snr_idx], *lasagne.layers.get_all_param_values(pa_phase.network))
