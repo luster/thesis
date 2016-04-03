@@ -168,7 +168,10 @@ if __name__ == '__main__':
                 # indx_phase.set_value(0)
 
                 for batch_idx in range(args.minibatches):
-                    print 'SNR = {}, Starting dataset {}/{}, epoch {}/{}, batch {}/{}'.format(args.snr[snr_idx], _+1, niter, epoch+1, numepochs, batch_idx+1, args.minibatches)
+                    to_print = 'SNR = {}, Starting dataset {}/{}, epoch {}/{}, batch {}/{}'.format(args.snr[snr_idx], _+1, niter, epoch+1, numepochs, batch_idx+1, args.minibatches)
+                    print to_print
+                    with open(os.path.join(folder, 'progress.txt'), 'w') as f:
+                        f.write(to_print)
                     loss_mag += train_fn_mag(dataset['training_data_magnitude'][batch_idx, :, :, :, :],
                         training_labels[batch_idx, :, :])
                     loss_phase += train_fn_phase(dataset['training_data_phase'][batch_idx, :, :, :, :],
@@ -176,6 +179,8 @@ if __name__ == '__main__':
                 lossreadout_mag = loss_mag / data_len
                 lossreadout_phase = loss_phase / data_len
                 infostring = "Epoch %d/%d: mag Loss %g, phase loss %g" % (epoch, numepochs, lossreadout_mag, lossreadout_phase)
+                with open(os.path.join(folder, 'current_loss.txt'), 'w') as f:
+                    f.write(infostring)
                 print infostring
                 if epoch == 0 or epoch == numepochs - 1 or (2 ** int(np.log2(epoch)) == epoch) or epoch % 50 == 0:
                     """generate 4 time signals using networks:
