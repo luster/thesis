@@ -25,10 +25,12 @@ def generate_graph():
             loss_phase.append(line[2])
             mse_dc.append(line[3])
             mse_dd.append(line[4])
-        fig = plt.figure()
+        progress = int(line[0])/768. * 100
+        fig = plt.figure(figsize=(16,16), dpi=80)
+        # plt.title('{}%'.format(progress))
         plt.subplot(411)
         plt.plot(loss_mag)
-        plt.title('loss_mag')
+        plt.title('loss_mag progress = %d%%' % (progress))
         plt.subplot(412)
         plt.plot(loss_phase)
         plt.title('loss_phase')
@@ -42,10 +44,9 @@ def generate_graph():
         tmp = StringIO()
         canvas.print_png(tmp)
         plt.savefig(tmp, format='png')
-        response = make_response(tmp.getvalue())
-        response.headers['Content-Type'] = 'image/png'
-        return response
-        # return send_file(tmp, mimetype='image/png')
+    response = make_response(tmp.getvalue())
+    response.headers['Content-Type'] = 'image/png'
+    return response
 
 
 if __name__ == '__main__':
