@@ -84,12 +84,15 @@ if __name__ == '__main__':
         pprint(args.__dict__, stream=f)
     print pa_mag.__dict__
 
+    iter_fname = os.path.join(folder, 'graphs.txt')  # iter, loss_mag, loss_phase, Sdc MSE, Sdd MSE
+
     mse_cc = []  # clean reconstruction
     mse_dc = []  # denoised magnitude, clean phase
     mse_cd = []  # clean magnitude, denoised phase
     mse_dd = []  # denoised magnitude, denoised phase
     mse_noisy = []  # baseline mse, Y = S + N w.r.t. S
     for snr_idx, k in enumerate(k_values):
+
         # mse_cc.append(0)
         mse_dc.append(0)
         mse_cd.append(0)
@@ -197,19 +200,20 @@ if __name__ == '__main__':
                     Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
 
                     print 'baseline mse: ', baseline_mse
+                    msesdc = mean_squared_error(Scc, Sdc)
+                    msesdd = mean_squared_error(Scc, Sdd)
                     print '\tMSE noisy: ', mean_squared_error(Scc, Snoisy)
-                    print '\tMSE Sdc: ', mean_squared_error(Scc, Sdc)
+                    print '\tMSE Sdc: ', msesdc
                     print '\tMSE Scd: ', mean_squared_error(Scc, Scd)
-                    print '\tMSE Sdd: ', mean_squared_error(Scc, Sdd)
+                    print '\tMSE Sdd: ', msesdd
 
-                    latentsval_phase = latents_fn_phase(sample_phase)
-                    latentsval_mag = latents_fn_mag(sample_mag)
+                    with open(iter_fname, 'a') as f:
+                        line = "{},{},{},{},{}\n".format(_, lossreadout_mag, lossreadout_phase, msesdc, msesdd)
+                        f.write(line)
 
-                    # # normalize signals with respect to clean reconstruction
-                    # Sdc = normalize(calculate_time_signal(prediction_mag, dataset_['clean_phase'][:, idx:idx+pa_mag.numtimebins]), Scc)
-                    # Scd = normalize(calculate_time_signal(dataset_['clean_magnitude'][:, idx:idx+pa_mag.numtimebins], prediction_phase), Scc)
-                    # Sdd = normalize(calculate_time_signal(prediction_mag, prediction_phase), Scc)
-                    # save wav files
+                    # latentsval_phase = latents_fn_phase(sample_phase)
+                    # latentsval_mag = latents_fn_mag(sample_mag)
+
                     # create dir first
                     if not os.path.exists(os.path.join(folder, 'wav')):
                         os.makedirs(os.path.join(folder, 'wav'))

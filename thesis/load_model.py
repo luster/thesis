@@ -9,6 +9,7 @@ import numpy as np
 import lasagne
 import theano
 
+import scikits.audiolab
 import matplotlib.pyplot as plt
 
 from build_networks import PartitionedAutoencoder
@@ -83,6 +84,28 @@ if __name__ == '__main__':
 
     # reconstructions
     Xdd = calculate_time_signal(Xmag_hat, Xphase_hat)
+    scikits.audiolab.wavwrite(Xdd, 'xdd.wav', fs=44100, enc='pcm16')
     Xdc = calculate_time_signal(Xmag_hat, s_phase)
+    scikits.audiolab.wavwrite(Xdc, 'xdc.wav', fs=44100, enc='pcm16')
     Xcc = calculate_time_signal(s_mag, s_phase)
+    scikits.audiolab.wavwrite(Xcc/max(abs(Xcc)), 'xcc.wav', fs=44100, enc='pcm16')
     Xdx = calculate_time_signal(Xmag_hat, x_phase)
+    scikits.audiolab.wavwrite(Xdx, 'xdx.wav', fs=44100, enc='pcm16')
+
+    # plt.specgram(Xdc, NFFT=512, noverlap=256, Fs=44100, mode='magnitude', scale='dB')
+    # plt.show()
+
+    # plt.figure()
+    # ax = plt.subplot(2,2,1)
+    # ax.plot(Xdd)
+    # ax.set_xlim([62000, 63000])
+    # ax = plt.subplot(2,2,2)
+    # ax.plot(Xdc)
+    # ax.set_xlim([62000, 63000])
+    # ax = plt.subplot(2,2,3)
+    # ax.plot(Xcc)
+    # ax.set_xlim([62000, 63000])
+    # ax = plt.subplot(2,2,4)
+    # ax.plot(Xdx)
+    # ax.set_xlim([62000, 63000])
+    # plt.show()
