@@ -1,9 +1,12 @@
-from flask import Flask, send_file
+from flask import Flask, send_file, make_response
 import matplotlib.pyplot as plt
 import os
 import glob
 import csv
-from cStringIO import StringIO
+from StringIO import StringIO
+from io import BytesIO
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.figure import Figure
 
 app = Flask(__name__)
 
@@ -35,9 +38,14 @@ def generate_graph():
         plt.subplot(224)
         plt.plot(mse_dd)
         plt.title('mse_dd')
+        canvas = FigureCanvas(fig)
         tmp = StringIO()
-        fig.savefig(tmp, format='png')
-        return send_file(tmp, mimetype='image/png')
+        canvas.print_png(tmp)
+        plt.savefig(tmp, format='png')
+        response = make_response(tmp.getvalue())
+        response.headers['Content-Type'] = 'image/png'
+        return response
+        # return send_file(tmp, mimetype='image/png')
 
 
 if __name__ == '__main__':
