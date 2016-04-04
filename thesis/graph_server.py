@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import os
 import glob
 import csv
+import re
 from StringIO import StringIO
 from io import BytesIO
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -10,9 +11,14 @@ from matplotlib.figure import Figure
 
 app = Flask(__name__)
 
+
+def get_latest_sim_dir():
+    return max(glob.glob(os.path.join('sim', '*/')), key=os.path.getmtime)
+
+
 @app.route('/')
 def generate_graph():
-    latest = max(glob.glob(os.path.join('sim', '*/')), key=os.path.getmtime)
+    latest = get_latest_sim_dir()
     fname = os.path.join(latest, 'graphs.txt')
     with open(fname, 'r') as f:
         r = csv.reader(f)
@@ -48,6 +54,16 @@ def generate_graph():
     response.headers['Content-Type'] = 'image/png'
     return response
 
+
+@app.route('/sound/<reconstruction>/<snr>')
+def play_sound(reconstruction, snr):
+    latest = os.path.join(get_latest_sim_dir(), 'wav')
+    regex = 'out_(noisy|Scc|Sdc|Scd|Sdd)_-{0,1}\d\.\d.wav'
+    fname = 'out_{}_{}.wav'.format(reconstruction, snr)
+    if not re.match(regex, fname):
+        return
+    fpath = os.path.join(latest, fname)
+    return send_file(fpath, mimetype='audio/wav', as_attachment=False)
 
 if __name__ == '__main__':
     app.run(debug=True)

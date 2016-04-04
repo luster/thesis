@@ -170,7 +170,7 @@ class PartitionedAutoencoder(object):
         loss = self.loss_func()
         update_args = {
             'adadelta': (lasagne.updates.adadelta, {
-                'learning_rate': 0.01, 'rho': 0.4, 'epsilon': 1e-6,
+                'learning_rate': 1.0, 'rho': 0.95, 'epsilon': 1e-6,
             }),
             'adam': (lasagne.updates.adam, {},),
         }[updates]

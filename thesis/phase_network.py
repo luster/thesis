@@ -87,3 +87,29 @@ class PartitionedAutoencoderForPhase(PartitionedAutoencoder):
     #     loss = (loss.mean() + lambduh/self.mean_C * regularization_term).mean()
     #     return loss
 
+class PhaseNeuralNet(PartitionedAutoencoder):
+
+    def initialize_network(self):
+        pass
+
+    def loss_func(self, lambduh=0.5):
+        pass
+
+    def train_fn_slim(self, updates='adadelta'):
+        loss = self.loss_func()
+        update_args = {
+            'adadelta': (lasagne.updates.adadelta, {
+                'learning_rate': 0.01, 'rho': 0.4, 'epsilon': 1e-6,
+            }),
+            'adam': (lasagne.updates.adam, {},),
+        }[updates]
+        update_func, update_params = update_args[0], update_args[1]
+
+        params = lasagne.layers.get_all_params(self.network, trainable=True)
+        updates = update_func(loss, params, **update_params)
+        train_fn = theano.function([self.input_var, self.soft_output_var],
+            loss, updates=updates,
+            allow_input_downcast=True,
+        )
+        return train_fn
+
