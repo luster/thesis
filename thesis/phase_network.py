@@ -91,7 +91,10 @@ class PartitionedAutoencoderForPhase(PartitionedAutoencoder):
 class PhaseNeuralNet(PartitionedAutoencoder):
 
     def initialize_network(self):
-        pass
+        network = lasagne.layers.InputLayer((None, 1, self.specbinnum, self.numtimebins), self.input_var)
+
+
+        self.network = network
 
     def loss_func(self, lambduh=0.5):
         pass

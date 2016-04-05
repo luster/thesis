@@ -70,11 +70,11 @@ def generate_graph():
 @app.route('/sound/<reconstruction>/<snr>')
 def play_sound(reconstruction, snr):
     latest = os.path.join(get_latest_sim_dir(), 'wav')
-    regex = 'out_(noisy|Scc|Sdc|Scd|Sdd)_-{0,1}\d\.\d.wav'
+    regex = '^out_(noisy|Scc|Sdc|Scd|Sdd)_-{0,1}\d\.\d.wav$'
     fname = 'out_{}_{}.wav'.format(reconstruction, snr)
     print fname
     if not re.match(regex, fname):
-        return
+        return make_response('Forbidden')
     fpath = os.path.join(latest, fname)
     return send_file(fpath, mimetype='audio/wav', as_attachment=False)
 
