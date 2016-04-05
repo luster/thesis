@@ -95,10 +95,11 @@ class PartitionedAutoencoder(object):
 
         # intermediate layer size
         ils = int((self.specbinnum + self.numfilters) / 2)
-        network, _ = custom_convlayer_2(network, in_num_chans=self.specbinnum, out_num_chans=ils)
+        # network, _ = custom_convlayer_2(network, in_num_chans=self.specbinnum, out_num_chans=ils)
+        # network = batch_norm(network)
+        network, _ = custom_convlayer_2(network, in_num_chans=self.specbinnum, out_num_chans=self.numfilters, nonlinearity=softplus)
         network = batch_norm(network)
-        network, _ = custom_convlayer_2(network, in_num_chans=ils, out_num_chans=self.numfilters)
-        network = lasagne.layers.NonlinearityLayer(network, nonlinearity=elu)
+        network = lasagne.layers.NonlinearityLayer(network, nonlinearity=softplus)
         # if self.use_maxpool:
         #     mp_down_factor = self.maxpooling_downsample_factor
         #     network = lasagne.layers.MaxPool2DLayer(network, pool_size=(1, self.mp_down_factor), stride=(1, self.mp_down_factor))
@@ -112,9 +113,9 @@ class PartitionedAutoencoder(object):
             use_maxpool=self.use_maxpool)
         # if self.use_maxpool:
         #     network = lasagne.layers.InverseLayer(network, maxpool_layer)
-        network, _ = custom_convlayer_2(network, in_num_chans=self.numfilters, out_num_chans=ils)
-        network = batch_norm(network)
-        network, _ = custom_convlayer_2(network, in_num_chans=ils, out_num_chans=self.specbinnum, nonlinearity=softplus)
+        # network, _ = custom_convlayer_2(network, in_num_chans=self.numfilters, out_num_chans=ils)
+        # network = batch_norm(network)
+        network, _ = custom_convlayer_2(network, in_num_chans=self.numfilters, out_num_chans=self.specbinnum, nonlinearity=softplus)
         network = batch_norm(network)
 
         self.network = network

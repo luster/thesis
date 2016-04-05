@@ -31,7 +31,7 @@ def generate_graph():
             loss_phase.append(float(line[2]))
             mse_dc.append(float(line[3]))
             mse_dd.append(float(line[4]))
-        progress = int(line[0])/768. * 100
+        progress = int(line[0])/768./2. * 100
         fig = plt.figure(figsize=(32,16), dpi=80)
         # plt.title('{}%'.format(progress))
         plt.subplot(421)
@@ -72,6 +72,7 @@ def play_sound(reconstruction, snr):
     latest = os.path.join(get_latest_sim_dir(), 'wav')
     regex = 'out_(noisy|Scc|Sdc|Scd|Sdd)_-{0,1}\d\.\d.wav'
     fname = 'out_{}_{}.wav'.format(reconstruction, snr)
+    print fname
     if not re.match(regex, fname):
         return
     fpath = os.path.join(latest, fname)
