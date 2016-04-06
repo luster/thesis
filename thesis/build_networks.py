@@ -131,7 +131,7 @@ class PartitionedAutoencoder(object):
         self.C_mat = theano.shared(np.asarray(C, dtype=dtype), borrow=True)
         self.mean_C = theano.shared(C.mean(), borrow=True)
 
-    def loss_func(self, lambduh=1.5):
+    def loss_func(self, lambduh=3.0):
         prediction = self.get_output()
         loss = lasagne.objectives.squared_error(prediction, self.input_var)
         regularization_term = self.soft_output_var * ((self.C_mat * lasagne.layers.get_output(self.latents)).mean())**2
