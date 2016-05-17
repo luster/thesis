@@ -122,10 +122,16 @@ def build_dataset_one_signal_frame(x_signal, x_noise, k, num_minibatches,
         x -= np.mean(x)
         return 0.5 * x / max(abs(x))
 
+    def _avg_energy_scale(x, y):
+        pwr_x = np.sum(x**2)
+        pwr_y = np.sum(y[0:len(x)]**2)
+        return np.sqrt(pwr_y/pwr_x)
+
     dtype = theano.config.floatX
     freq_transform = standard_specgram
 
-    x_signal = _norm_signal(x_signal)
+    scale_factor = _avg_energy_scale(x_signal, x_noise)
+    x_signal = _norm_signal(scale_factor * x_signal)
     x_noise = _norm_signal(x_noise)
     x_clean = np.copy(x_signal)
 
