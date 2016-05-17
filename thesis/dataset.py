@@ -135,9 +135,11 @@ def build_dataset_one_signal_frame(x_signal, x_noise, k, num_minibatches,
 
     # prevent clipping
     if k < 1:
-        x_signal = x_signal + k * x_noise
+        x_signal = x_signal + k * x_noise[0:len(x_signal)]
     else:
-        x_signal = 1/k * x_signal + x_noise
+        x_signal = 1/k * x_signal + x_noise[0:len(x_signal)]
+    x_noise = x_noise[len(x_signal)+1:]
+
     noise_specgram, noise_phasegram = freq_transform(x_noise)
     signal_specgram, signal_phasegram = freq_transform(x_signal)
     clean_specgram, clean_phasegram = freq_transform(x_clean)
