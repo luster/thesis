@@ -99,7 +99,6 @@ class PartitionedAutoencoder(object):
         # network = batch_norm(network)
         network, _ = custom_convlayer_2(network, in_num_chans=self.specbinnum, out_num_chans=self.numfilters, nonlinearity=softplus)
         network = batch_norm(network)
-        network = lasagne.layers.NonlinearityLayer(network, nonlinearity=softplus)
         # if self.use_maxpool:
         #     mp_down_factor = self.maxpooling_downsample_factor
         #     network = lasagne.layers.MaxPool2DLayer(network, pool_size=(1, self.mp_down_factor), stride=(1, self.mp_down_factor))
