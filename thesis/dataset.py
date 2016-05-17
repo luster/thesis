@@ -135,9 +135,9 @@ def build_dataset_one_signal_frame(x_signal, x_noise, k, num_minibatches,
     x_noise = _norm_signal(x_noise)
     x_clean = np.copy(x_signal)
 
-    x_signal = x_signal[start:end]
-    x_noise = x_noise[start:end]
-    x_clean = x_clean[start:end]
+    #x_signal = x_signal[start:end]
+    #x_noise = x_noise[start:end]
+    #x_clean = x_clean[start:end]
 
     # prevent clipping
     if k < 1:
