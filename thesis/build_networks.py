@@ -11,7 +11,6 @@ from conv_layer import custom_convlayer_2
 from lasagne.layers import batch_norm
 from lasagne.nonlinearities import rectify, elu, softplus
 from norm_layer import NormalisationLayer
-from dataset import build_dataset2
 from plot import make_plots
 import scikits.audiolab
 from sklearn.metrics import mean_squared_error
