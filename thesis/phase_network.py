@@ -32,7 +32,7 @@ from util import calculate_time_signal
 from sklearn.metrics import mean_squared_error
 
 from lasagne.layers import batch_norm, DenseLayer
-from lasagne.nonlinearities import elu, tanh, identity
+from lasagne.nonlinearities import elu, tanh, identity, softplus
 from conv_layer import custom_convlayer_2
 from norm_layer import NormalisationLayer
 from build_networks import PartitionedAutoencoder
