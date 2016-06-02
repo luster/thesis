@@ -60,9 +60,17 @@ y = T.matrix('y')
 shape = (examples_per_minibatch, 2, freq_bins, time_bins)
 x_hat, latents = build_network(X, shape)
 
+# make C matrix, C_mean
+pass
+
 # define loss function
-def loss(X, y):
-    pass
+def loss(X, y, network, latents, lambduh=0.75):
+    prediction = network.get_output()
+    loss = lasagne.objectives.squared_error(prediction, X)
+    regularization_term = y * ((C * latents.get_output()).mean())**2
+    loss = (loss.mean() + lambduh/mean_C * regularization_term).mean()
+
+    return loss
 
 # load data
 
