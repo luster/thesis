@@ -94,7 +94,7 @@ class PartitionedAutoencoder(object):
         return network
 
     def get_layer_sizes(self):
-        layer_sizes = np.array([1, 0.75, 0.5, 0.25, 0])  # 1 is in channel, 0 is out channel
+        layer_sizes = np.array([1, 1, 0.75, 0.5, 0.25, 0.25, 0])  # 1 is in channel, 0 is out channel
         network_sizes = [
             int(i*self.specbinnum + (1-i)*self.numfilters) \
             for i in layer_sizes
