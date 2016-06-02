@@ -137,8 +137,8 @@ if __name__ == '__main__':
         test_latents_phase = lasagne.layers.get_output(pa_phase.latents, deterministic=True)
         predict_fn_mag = theano.function([pa_mag.input_var], test_prediction_mag)
         predict_fn_phase = theano.function([pa_phase.input_var], test_prediction_phase)
-        latents_fn_mag = theano.function([pa_mag.input_var], test_latents_mag)
-        latents_fn_phase = theano.function([pa_phase.input_var], test_latents_phase)
+        # latents_fn_mag = theano.function([pa_mag.input_var], test_latents_mag)
+        # latents_fn_phase = theano.function([pa_phase.input_var], test_latents_phase)
 
         # data sample for reconstruction
         sample_mag = np.array([[dataset_['signal_magnitude'][:, idx:idx+pa_mag.numtimebins]]], dtype)
