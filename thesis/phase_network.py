@@ -60,7 +60,7 @@ class PartitionedAutoencoderForPhase(PartitionedAutoencoder):
         network = NormalisationLayer(network, self.specbinnum)
         self.normlayer = network
 
-        input_output_pairs = self.get_layer_sizes()
+        network_sizes, input_output_pairs = self.get_layer_sizes()
 
         for in_chans, out_chans in input_output_pairs:
             network = self.add_layer(network, in_chans, out_chans)

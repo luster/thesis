@@ -100,7 +100,7 @@ class PartitionedAutoencoder(object):
             for i in layer_sizes[0:-1]
         ]
         input_output_pairs = zip(network_sizes[0:-1], network_sizes[1:])
-        return input_output_pairs
+        return network_sizes, input_output_pairs
 
     def initialize_network(self):
         network = lasagne.layers.InputLayer((None, 1, self.specbinnum, self.numtimebins), self.input_var)
@@ -108,7 +108,7 @@ class PartitionedAutoencoder(object):
         self.normlayer = network
 
         # layer sizes
-        input_output_pairs = self.get_layer_sizes()
+        network_sizes, input_output_pairs = self.get_layer_sizes()
 
         for in_chans, out_chans in input_output_pairs:
             network = self.add_layer(network, in_chans, out_chans)
