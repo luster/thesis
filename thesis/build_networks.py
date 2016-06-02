@@ -94,10 +94,10 @@ class PartitionedAutoencoder(object):
         return network
 
     def get_layer_sizes(self):
-        layer_sizes = np.array([1, 1, 0.75, 0.5, 0.25, 0])  # 1 is in channel, 0 is out channel
+        layer_sizes = np.array([1, 0.75, 0.5, 0.25, 0])  # 1 is in channel, 0 is out channel
         network_sizes = [
             int(i*self.specbinnum + (1-i)*self.numfilters) \
-            for i in layer_sizes[0:-1]
+            for i in layer_sizes
         ]
         input_output_pairs = zip(network_sizes[0:-1], network_sizes[1:])
         return network_sizes, input_output_pairs
@@ -109,6 +109,7 @@ class PartitionedAutoencoder(object):
 
         # layer sizes
         network_sizes, input_output_pairs = self.get_layer_sizes()
+        print input_output_pairs
 
         for in_chans, out_chans in input_output_pairs:
             network = self.add_layer(network, in_chans, out_chans)
