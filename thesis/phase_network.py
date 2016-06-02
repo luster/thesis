@@ -49,22 +49,21 @@ def phase_activation(x):
 
 class PartitionedAutoencoderForPhase(PartitionedAutoencoder):
 
+    def add_layer(self, network, in_chans, out_chans, nonlinearity=elu):
+        print in_chans, out_chans
+        network, _ = custom_convlayer_2(network, in_num_chans=in_chans, out_num_chans=out_chans, nonlinearity=elu)
+        network = batch_norm(network)
+        return network
+
     def initialize_network(self):
         network = lasagne.layers.InputLayer((None, 1, self.specbinnum, self.numtimebins), self.input_var)
         network = NormalisationLayer(network, self.specbinnum)
         self.normlayer = network
 
-        # intermediate layer size
-        ils = int((self.specbinnum + self.numfilters) / 2)
-        # network, _ = custom_convlayer_2(network, in_num_chans=self.specbinnum, out_num_chans=ils, nonlinearity=tanh)
-        # network = batch_norm(network)
-        network, _ = custom_convlayer_2(network, in_num_chans=self.specbinnum, out_num_chans=self.numfilters, nonlinearity=tanh)
-        netowkr = batch_norm(network)
-        network = lasagne.layers.NonlinearityLayer(network, nonlinearity=tanh)
-        # if self.use_maxpool:
-        #     mp_down_factor = self.maxpooling_downsample_factor
-        #     network = lasagne.layers.MaxPool2DLayer(network, pool_size=(1, self.mp_down_factor), stride=(1, self.mp_down_factor))
-        #     maxpool_layer = network
+        input_output_pairs = self.get_layer_sizes()
+
+        for in_chans, out_chans in input_output_pairs:
+            network = self.add_layer(network, in_chans, out_chans)
         self.latents = network
         network = ZeroOutBackgroundLatentsLayer(self.latents,
             mp_down_factor=self.mp_down_factor,
@@ -72,11 +71,13 @@ class PartitionedAutoencoderForPhase(PartitionedAutoencoder):
             numtimebins=self.numtimebins,
             background_latents_factor=self.background_latents_factor,
             use_maxpool=self.use_maxpool)
-        # if self.use_maxpool:
-        #     network = lasagne.layers.InverseLayer(network, maxpool_layer)
-        # network, _ = custom_convlayer_2(network, in_num_chans=self.numfilters, out_num_chans=ils, nonlinearity=tanh)
-        # network = batch_norm(network)
-        network, _ = custom_convlayer_2(network, in_num_chans=self.numfilters, out_num_chans=self.specbinnum, nonlinearity=identity)
+        reversed_network_sizes = list(reversed(network_sizes))
+        unfolded_input_output_pairs = zip(reversed_network_sizes[0:-1], reversed_network_sizes[1:])
+        for in_chans, out_chans in unfolded_input_output_pairs[0:-1]:
+            network = self.add_layer(network, in_chans, out_chans)
+        # last layer we do separately
+        in_chans, out_chans = unfolded_input_output_pairs[-1]
+        network, _ = custom_convlayer_2(network, in_num_chans=in_chans, out_num_chans=out_chans, nonlinearity=softplus)
         network = batch_norm(network)
 
         self.network = network

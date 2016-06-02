@@ -87,11 +87,20 @@ class PartitionedAutoencoder(object):
         # self.training_labels_shared = theano.shared(np.zeros((self.num_minibatches, self.minibatch_size,1), dtype=dtype), borrow=True)
         # self.training_data_shared = theano.shared(np.zeros((self.num_minibatches, self.minibatch_size, 1, self.specbinnum, self.numtimebins), dtype=dtype), borrow=True)
 
-    def add_layer(self, network, in_chans, out_chans, nonliearity=None):
+    def add_layer(self, network, in_chans, out_chans, nonlinearity=elu):
         print in_chans, out_chans
-        network, _ = custom_convlayer_2(network, in_num_chans=in_chans, out_num_chans=out_chans)
+        network, _ = custom_convlayer_2(network, in_num_chans=in_chans, out_num_chans=out_chans, nonlinearity=elu)
         network = batch_norm(network)
         return network
+
+    def get_layer_sizes(self):
+        layer_sizes = np.array([1, 1, 0.75, 0.5, 0.25, 0])  # 1 is in channel, 0 is out channel
+        network_sizes = [
+            round(i*self.specbinnum + (1-i)*self.numfilters) \
+            for i in layer_sizes[0:-1]
+        ]
+        input_output_pairs = zip(network_sizes[0:-1], network_sizes[1:])
+        return input_output_pairs
 
     def initialize_network(self):
         network = lasagne.layers.InputLayer((None, 1, self.specbinnum, self.numtimebins), self.input_var)
@@ -99,12 +108,7 @@ class PartitionedAutoencoder(object):
         self.normlayer = network
 
         # layer sizes
-        layer_sizes = np.array([1, 1, 0.75, 0.5, 0.25, 0])  # 1 is in channel, 0 is out channel
-        network_sizes = [
-            round(i*self.specbinnum + (1-i)*self.numfilters) \
-            for i in layer_sizes[0:-1]
-        ]
-        input_output_pairs = zip(network_sizes[0:-1], network_sizes[1:])
+        input_output_pairs = self.get_layer_sizes()
 
         for in_chans, out_chans in input_output_pairs:
             network = self.add_layer(network, in_chans, out_chans)
