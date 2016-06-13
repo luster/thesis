@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import theano
 import theano.tensor as T
@@ -99,7 +100,7 @@ def make_c_matrix(latents, n_noise_only_examples, minibatches):
     return C_mat, mean_C
 
 
-def loss(X, y, network, latents, C, mean_C, lambduh=0.75):
+def loss_func(X, y, network, latents, C, mean_C, lambduh=0.75):
     prediction = get_output(network)
     loss = lasagne.objectives.squared_error(prediction, X)
     regularization_term = y * ((C * get_output(latents)).mean())**2
@@ -120,8 +121,8 @@ def main(*args, **kwargs):
     shape = (examples_per_minibatch, 2, freq_bins, time_bins)
     x_hat, latents = build_network(X, shape, percent_background_latents)
     C, mean_C = make_c_matrix(latents, n_noise_only_examples, minibatches)
-    loss = loss(X, y, x_hat, latents, C, mean_C, lambduh)
-    pretrain_fn = pretrain_fn(X, y, x_hat, loss)
+    loss = loss_func(X, y, x_hat, latents, C, mean_C, lambduh)
+    train_fn = pretrain_fn(X, y, x_hat, loss)
 
     # load data
     snr = -3
@@ -130,14 +131,25 @@ def main(*args, **kwargs):
     n_path = '../data/golf_club_bar_lunch_time.wav'
     from dataset import load_soundfiles, build_dataset_one_signal_frame
     signal, noise = load_soundfiles(x_path, n_path)
-    dataset = build_dataset_one_signal_frame(
-        signal, noise,
-        framelength, k,
-        minibatches, examples_per_minibatch, freq_bins, time_bins,
-        n_noise_only_examples)
+    niter = 100
 
+    for i in range(niter):
+        dataset = build_dataset_one_signal_frame(
+            signal, noise,
+            framelength, k,
+            minibatches, examples_per_minibatch, freq_bins, time_bins,
+            n_noise_only_examples)
 
-    # train
+        loss = 0
+        for batch_idx in range(minibatches):
+            ts = time.time()
+            loss += train_fn(
+                dataset['training_data'][batch_idx, :, :, :, :],
+                dataset['training_labels'][batch_idx, :, :],
+            )
+            te = time.time()
+            print 'iter %d/%d/%d took %.3f sec' % (batch_idx, minibatches, niter, te-ts)
+        print loss
 
     # create back-prop net
 
