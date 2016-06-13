@@ -20,7 +20,7 @@ def calculate_time_signal(magnitudegram, phasegram):
 
 
 def ISTFT(real, imag):
-    stft = real + 1j * imag
+    stft = real + (1j * imag)
     return istft(np.squeeze(stft), None)
 
 
