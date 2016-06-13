@@ -3,6 +3,7 @@ from os.path import join
 import time
 import numpy as np
 from datetime import datetime
+import pytz
 import theano
 import theano.tensor as T
 import lasagne
@@ -185,6 +186,7 @@ def main(*args, **kwargs):
     p = join('sim', datetime.now(pytz.timezone('America/New_York')).strftime('%Y-%m-%d_%H-%M'))
     if not os.path.exists(p):
         os.makedirs(p)
+        os.makedirs(join(p, 'wav'))
     wavwrite(sample_data['Scc'], join(p, 'wav/Scc.wav'), fs=fs, enc='pcm16')
     wavwrite(sample_data['noisy'], join(p, 'wav/noisy.wav'), fs=fs, enc='pcm16')
 
