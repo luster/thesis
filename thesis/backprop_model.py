@@ -167,7 +167,7 @@ def main(*args, **kwargs):
     loss = loss_func(X, y, network, latents, C, mean_C, lambduh)
     train_fn = pretrain_fn(X, y, network, loss)
 
-    prediction = get_output(network, deterministic=True, reconstruct=True, allow_input_downcast=True)
+    prediction = get_output(network, deterministic=True, reconstruct=True)
     predict_fn = theano.function([X], prediction)
 
     # load data
