@@ -11,7 +11,7 @@ import scipy
 
 from matplotlib.mlab import specgram, phase_spectrum
 
-from config import *
+from cfg import *
 
 
 def calculate_time_signal(magnitudegram, phasegram):
@@ -20,19 +20,17 @@ def calculate_time_signal(magnitudegram, phasegram):
 
 
 # Originally from http://stackoverflow.com/a/6891772/125507
-def stft(x):  # fs, framesz, hop):
+def stft(x, framelength=framelength, overlap=framelength/2, freq_bins=freq_bins):  # fs, framesz, hop):
     """x is the time-domain signal
     fs is the sampling frequency
     framesz is the frame size, in seconds
     hop is the the time between the start of consecutive frames, in seconds
     """
-    framesamp = audioframe_len
-    hopsamp = audioframe_stride
-    w = scipy.hamming(framesamp)
-    X = np.array([scipy.fft(w*x[i:i+framesamp], fft_bins)
-                     for i in range(0, len(x)-framesamp, hopsamp)], dtype=complex64)
-    shape = X.shape
-    return np.abs(X), np.angle(X)
+    w = scipy.hamming(framelength)
+    X = np.array([scipy.fft(w*x[i:i+framelength], freq_bins)
+                     for i in range(0, len(x)-framelength, overlap)], dtype=complex64)
+    X = np.transpose(X)
+    return np.real(X), np.imag(X)
 
 
 def istft(X, x_original):  #, fs, T, hop):
@@ -64,7 +62,7 @@ def standard_specgram(signal):#, audioframe_len, audioframe_stride, specbinlow, 
                 window=np.hamming(audioframe_len), mode='phase')[0][specbinlow:specbinlow + specbinnum, :], dtype=float32)
 
 
-def load_soundfile(inwavpath, startpossecs, maxdursecs=None):
+def load_soundfile(inwavpath, startpossecs, maxdursecs=None, wavdownsample=1, srate=44100):
     """Loads audio data, optionally limiting to a specified start position and duration.
     Must be SINGLE-CHANNEL and matching our desired sample-rate."""
     framelen = 4096

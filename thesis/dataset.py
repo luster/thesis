@@ -13,7 +13,7 @@ import theano.tensor as T
 
 import lasagne
 
-from config import *
+from cfg import *
 from util import standard_specgram, load_soundfile, stft
 
 background = 1.
@@ -32,86 +32,7 @@ def load_soundfiles(signal, noise):
     return x_signal, x_noise
 
 
-def build_dataset3(x_signal, x_noise, sec_of_audio, k, training_data_size,
-    minibatch_size, specbinnum, numtimebins, n_noise_only_examples, index=0):
-
-    dtype = theano.config.floatX
-    freq_transform = standard_specgram
-
-    x_clean = np.copy(x_signal)
-
-    # need a slice of x_signal and x_noise to add, obviously of the same size
-    if len(x_signal) > len(x_noise):
-        indx = len(x_noise)
-    else:
-        indx = len(x_signal)
-
-    if indx > sec_of_audio*srate:
-        start = np.random.randint(indx - sec_of_audio*srate)
-        end = start + sec_of_audio*srate + 1
-    else:
-        raise ValueError('not enough audio data')
-
-    x_signal = x_signal[start:end]
-    x_noise = x_noise[start:end]
-    x_clean = x_clean[start:end]
-
-    # prevent clipping
-    if k < 1:
-        x_signal = x_signal + k * x_noise
-    else:
-        x_signal = 1/k * x_signal + x_noise
-    noise_specgram, noise_phasegram = freq_transform(x_noise)
-    signal_specgram, signal_phasegram = freq_transform(x_signal)
-    clean_specgram, clean_phasegram = freq_transform(x_clean)
-
-    training_data_magnitude = np.zeros((training_data_size, minibatch_size, 1, specbinnum, numtimebins), dtype=dtype)
-    training_data_phase = np.zeros((training_data_size, minibatch_size, 1, specbinnum, numtimebins), dtype=dtype)
-    training_labels = np.zeros((training_data_size, minibatch_size), dtype=dtype)
-    num_time_samples = int(audioframe_len/2 * (numtimebins + 1))
-    # training_data_time = np.zeros((training_data_size, minibatch_size, 1, 1, num_time_samples))
-
-    noise_minibatch_range = range(n_noise_only_examples)
-
-    for which_training_batch in range(training_data_size):
-        for which_training_datum in range(minibatch_size):
-            if which_training_datum in noise_minibatch_range:
-                specgram = noise_specgram
-                phasegram = noise_phasegram
-                label = background
-                timesig = x_noise
-            else:
-                specgram = signal_specgram
-                phasegram = signal_phasegram
-                label = foreground
-                timesig = x_signal
-            startindex = np.random.randint(specgram.shape[1] - numtimebins)
-            time_start = int(audioframe_len/2 * (startindex + 1) - audioframe_len/2)
-            time_end = time_start + num_time_samples
-
-            training_data_magnitude[which_training_batch, which_training_datum, :, :, :] = specgram[:, startindex:startindex+numtimebins]
-            training_data_phase[which_training_batch, which_training_datum, :, :, :] = phasegram[:, startindex:startindex+numtimebins]
-            training_labels[which_training_batch, which_training_datum] = label
-            # import ipdb; ipdb.set_trace()
-            # training_data_time[which_training_batch, which_training_datum, :, :, :] = timesig[time_start:time_end]
-
-    return {
-        'training_labels': training_labels,
-        'training_data_magnitude': training_data_magnitude,
-        'training_data_phase': training_data_phase,
-        # 'training_data_time': training_data_time,
-        'clean_magnitude': clean_specgram,
-        'clean_phase': clean_phasegram,
-        'signal_magnitude': signal_specgram,
-        'signal_phase': signal_phasegram,
-        'noise_magnitude': noise_specgram,
-        'noise_phase': noise_phasegram,
-        'clean_time_signal': x_clean,
-        'noisy_time_signal': x_signal,
-    }
-
-
-def build_dataset_one_signal_frame(x_signal, x_noise, k, num_minibatches,
+def build_dataset_one_signal_frame(x_signal, x_noise, framelength, k, num_minibatches,
     minibatch_size, specbinnum, numtimebins, n_noise_only_examples):
     """
         x_signal: CLEAN "one frame" --> equivalent length to one spectrogram
@@ -128,16 +49,11 @@ def build_dataset_one_signal_frame(x_signal, x_noise, k, num_minibatches,
         return np.sqrt(pwr_y/pwr_x)
 
     dtype = theano.config.floatX
-    freq_transform = standard_specgram
 
     scale_factor = _avg_energy_scale(x_signal, x_noise)
     x_signal = _norm_signal(scale_factor * x_signal)
     x_noise = _norm_signal(x_noise)
     x_clean = np.copy(x_signal)
-
-    #x_signal = x_signal[start:end]
-    #x_noise = x_noise[start:end]
-    #x_clean = x_clean[start:end]
 
     # prevent clipping
     if k < 1:
@@ -146,46 +62,44 @@ def build_dataset_one_signal_frame(x_signal, x_noise, k, num_minibatches,
         x_signal = 1/k * x_signal + x_noise[0:len(x_signal)]
     x_noise = x_noise[len(x_signal)+1:]
 
-    noise_specgram, noise_phasegram = freq_transform(x_noise)
-    signal_specgram, signal_phasegram = freq_transform(x_signal)
-    clean_specgram, clean_phasegram = freq_transform(x_clean)
+    noise_real, noise_imag = stft(x_noise)
+    signal_real, signal_imag = stft(x_signal)
+    clean_real, clean_imag = stft(x_clean)
 
-    training_data_magnitude = np.zeros((num_minibatches, minibatch_size, 1, specbinnum, numtimebins), dtype=dtype)
-    training_data_phase = np.zeros((num_minibatches, minibatch_size, 1, specbinnum, numtimebins), dtype=dtype)
+    training_data = np.zeros((num_minibatches, minibatch_size, 2, specbinnum, numtimebins), dtype=dtype)
     training_labels = np.zeros((num_minibatches, minibatch_size), dtype=dtype)
-    num_time_samples = int(audioframe_len/2 * (numtimebins + 1))
+    num_time_samples = int(framelength/2 * (numtimebins + 1))
 
     noise_minibatch_range = range(n_noise_only_examples)
 
     for which_training_batch in range(num_minibatches):
         for which_training_datum in range(minibatch_size):
             if which_training_datum in noise_minibatch_range:
-                specgram = noise_specgram
-                phasegram = noise_phasegram
+                re = noise_real
+                im = noise_imag
                 label = background
-                startindex = np.random.randint(specgram.shape[1] - numtimebins)
+                startindex = np.random.randint(re.shape[1] - numtimebins)
             else:
-                specgram = signal_specgram
-                phasegram = signal_phasegram
+                re = signal_real
+                im = signal_imag
                 label = foreground
                 startindex = 0
-            time_start = int(audioframe_len/2 * (startindex + 1) - audioframe_len/2)
+            time_start = int(framelength/2 * (startindex + 1) - framelength/2)
             time_end = time_start + num_time_samples
 
-            training_data_magnitude[which_training_batch, which_training_datum, :, :, :] = specgram[:, startindex:startindex+numtimebins]
-            training_data_phase[which_training_batch, which_training_datum, :, :, :] = phasegram[:, startindex:startindex+numtimebins]
+            training_data[which_training_batch, which_training_datum, 0, :, :] = re[:, startindex:startindex+numtimebins]
+            training_data[which_training_batch, which_training_datum, 1, :, :] = im[:, startindex:startindex+numtimebins]
             training_labels[which_training_batch, which_training_datum] = label
 
     return {
         'training_labels': training_labels,
-        'training_data_magnitude': training_data_magnitude,
-        'training_data_phase': training_data_phase,
-        'clean_magnitude': clean_specgram,
-        'clean_phase': clean_phasegram,
-        'signal_magnitude': signal_specgram,
-        'signal_phase': signal_phasegram,
-        'noise_magnitude': noise_specgram,
-        'noise_phase': noise_phasegram,
+        'training_data': training_data,
+        'clean_real': clean_real,
+        'clean_imag': clean_imag,
+        'signal_real': signal_real,
+        'signal_imag': signal_imag,
+        'noise_real': noise_real,
+        'noise_imag': noise_imag,
         'clean_time_signal': x_clean,
         'noisy_time_signal': x_signal,
     }
