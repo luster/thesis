@@ -29,7 +29,7 @@ class ZeroOutBackgroundLatentsLayer(lasagne.layers.Layer):
         percent_background_latents = kwargs.get('percent_background_latents')
         sh = list(incoming.output_shape)
         sh[0] = 1
-        mask = np.ones(sh)
+        mask = np.ones(sh, dtype)
         n = int(percent_background_latents * mask.shape[1])
         mask[:, 0:n, :, :] = 0
         self.mask = theano.shared(mask, borrow=True)
@@ -109,7 +109,7 @@ def build_network(X, shape, percent_background_latents):
 def make_c_matrix(latents, n_noise_only_examples, minibatches):
     sizeof_c = list(lasagne.layers.get_output_shape(latents))
     sizeof_c[0] = minibatches
-    C = np.zeros(sizeof_c)
+    C = np.zeros(sizeof_c, dtype)
     C[0:n_noise_only_examples, :, latents.n+1:, :] = 1
     C_mat = theano.shared(np.asarray(C, dtype=dtype), borrow=True)
     mean_C = theano.shared(C.mean(), borrow=True)
