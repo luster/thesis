@@ -19,6 +19,15 @@ def calculate_time_signal(magnitudegram, phasegram):
     return istft(np.squeeze(stft), None)
 
 
+def ISTFT(real, imag):
+    stft = real + 1j * imag
+    return istft(np.squeeze(stft), None)
+
+
+def normalize(this, against):
+    return this / max(abs(this)) * max(abs(against))
+
+
 # Originally from http://stackoverflow.com/a/6891772/125507
 def stft(x, framelength=framelength, overlap=framelength/2, freq_bins=freq_bins):  # fs, framesz, hop):
     """x is the time-domain signal
@@ -33,21 +42,19 @@ def stft(x, framelength=framelength, overlap=framelength/2, freq_bins=freq_bins)
     return np.real(X), np.imag(X)
 
 
-def istft(X, x_original):  #, fs, T, hop):
+def istft(X, x_original, fs=44100):  #, fs, T, hop):
     """X is the short-time Fourier transform
     fs is the sampling frequency
     T is the total length of the time-domain output in seconds
     hop is the the time between the start of consecutive frames, in seconds
     """
-    fs = srate
+    audioframe_len = framelength
+    audioframe_stride = int(framelength/2.)
     # T = len(x_original)
-    # x = scipy.zeros(audioframe_len/2*(numtimebins + 1))
-    x = scipy.zeros(audioframe_len/2*(X.shape[1] + 1))
-    framesamp = audioframe_len
-    hopsamp = audioframe_stride
-    w = scipy.hamming(framesamp)
-    for n,i in enumerate(range(0, len(x)-framesamp, hopsamp)):
-        x[i:i+framesamp] += scipy.real(scipy.ifft(X[:, n], framesamp))
+    x = scipy.zeros(framelength/2*(time_bins + 1))
+    w = scipy.hamming(framelength)
+    for n,i in enumerate(range(0, len(x)-framelength, overlap)):
+        x[i:i+framelength] += scipy.real(scipy.ifft(X[:, n], framelength))
     return x
 
 
