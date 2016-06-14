@@ -40,7 +40,7 @@ class FineTuneLayer(lasagne.layers.Layer):
         elif not pretrain and not one:
             return input_data + self.delta
         else:
-            return input_data + self.delta * self.delta[0, :, :, :]
+            return input_data + self.delta[0, :, :, :]
 
 
 # def build_finetune_network(X, shape, latents):
