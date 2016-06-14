@@ -171,12 +171,12 @@ def main(*args, **kwargs):
     predict_fn = theano.function([X], prediction, allow_input_downcast=True)
 
     # load data
-    snr = -3
+    snr = -1
     k = 10. ** (snr/20.)
     x_path = '../data/moonlight_sample.wav'
     n_path = '../data/golf_club_bar_lunch_time.wav'
     signal, noise = load_soundfiles(x_path, n_path)
-    niter = 100
+    niter = 500
 
     sample_data = get_sample_data(signal, noise,
         framelength, k,
@@ -210,7 +210,7 @@ def main(*args, **kwargs):
             print 'loss: %.3f iter %d/%d/%d/%d took %.3f sec' % (l, batch_idx+1, minibatches, i, niter, te-ts)
         print loss/minibatches
 
-        if i % 5 == 0:
+        if True:
             X_hat = predict_fn(sample_data['sample'])
             x_hat = ISTFT(X_hat[:,0,:,:], X_hat[:,1,:,:])
             mse = mean_squared_error(sample_data['Scc'], x_hat)

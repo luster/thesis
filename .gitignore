@@ -73,3 +73,5 @@ data/gj_mono
 *.mp3
 *.aup
 *.au
+sim/
+*.png

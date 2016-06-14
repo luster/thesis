@@ -78,5 +78,13 @@ def play_sound(reconstruction, snr):
     fpath = os.path.join(latest, fname)
     return send_file(fpath, mimetype='audio/wav', as_attachment=False)
 
+@app.route('/play/<fname>')
+def snd(fname):
+    if fname not in ['xhat', 'noisy', 'clean', 'Scc']:
+        return make_response('Forbidden')
+    d = os.path.join(get_latest_sim_dir(), 'wav')
+    fpath = os.path.join(d, '{}.wav'.format(fname))
+    return send_file(fpath, mimetype='audio/wav', as_attachment=False)
+
 if __name__ == '__main__':
     app.run(debug=True)
