@@ -236,8 +236,7 @@ def main(*args, **kwargs):
         os.makedirs(p)
         os.makedirs(join(p, 'wav'))
     wavwrite(sample_data['Scc'], join(p, 'wav/Scc.wav'), fs=fs, enc='pcm16')
-    wavwrite(sample_data['noisy'], join(
-        p, 'wav/noisy.wav'), fs=fs, enc='pcm16')
+    wavwrite(sample_data['noisy'], join(p, 'wav/noisy.wav'), fs=fs, enc='pcm16')
 
     for i in range(niter):
         dataset = build_dataset_one_signal_frame(
@@ -300,6 +299,8 @@ def main(*args, **kwargs):
             mse = mean_squared_error(sample_data['Scc'], x_hat)
             print 'finetune mse: %.3E' % mse
             wavwrite(x_hat, join(p, 'wav/fine_xhat.wav'), fs=fs, enc='pcm16')
+            wtf = ISTFT(sample_data['sample'][:,0,:,:], sample_data['sample'][:,1,:,:])
+            wavwrite(wtf, join(p, 'wav/wtf.wav'), fs=fs, enc='pcm16')
             # save model
             # plots
 
