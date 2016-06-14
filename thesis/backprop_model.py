@@ -34,7 +34,7 @@ class FineTuneLayer(lasagne.layers.Layer):
 
     def get_output_for(self, input_data, pretrain=True, one=False, **kwargs):
         if pretrain:
-            return input_data
+            return input_data + 0.0 * self.delta
         if one:
             return input_data + self.delta[0, :, :, :]
         return input_data + self.delta
@@ -219,8 +219,8 @@ def main(*args, **kwargs):
     predict_fn = theano.function([X], prediction, allow_input_downcast=True)
 
     # load data
-    snr = -1
-    k = 10. ** (snr/20.)
+    snr = -6
+    k = 10. ** (snr/20.); print k
     x_path = '../data/moonlight_sample.wav'
     n_path = '../data/golf_club_bar_lunch_time.wav'
     signal, noise = load_soundfiles(x_path, n_path)
