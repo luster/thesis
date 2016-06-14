@@ -216,7 +216,7 @@ def main(*args, **kwargs):
     predict_fn = theano.function([X], prediction, allow_input_downcast=True)
 
     # load data
-    snr = -6
+    snr = -1
     k = 10. ** (-snr/10.); print k
     x_path = '../data/moonlight_sample.wav'
     n_path = '../data/golf_club_bar_lunch_time.wav'

@@ -83,6 +83,7 @@ def snd(fname):
     if fname not in ['xhat', 'noisy', 'clean', 'Scc', 'fine_xhat', 'wtf']:
         return make_response('Forbidden')
     d = os.path.join(get_latest_sim_dir(), 'wav')
+    print d
     fpath = os.path.join(d, '{}.wav'.format(fname))
     return send_file(fpath, mimetype='audio/wav', as_attachment=False)
 
