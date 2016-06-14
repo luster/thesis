@@ -1,5 +1,5 @@
-minibatches = 8
-examples_per_minibatch = 8
+minibatches = 1
+examples_per_minibatch = 32
 framelength = 128
 overlap = framelength/2
 freq_bins = 128
@@ -12,4 +12,4 @@ lambduh = 0.75
 
 fs = 44100
 
-niter = 20
+niter = 50
