@@ -29,7 +29,7 @@ class FineTuneLayer(lasagne.layers.Layer):
         super(FineTuneLayer, self).__init__(incoming)
         self.shape = list(incoming.output_shape)
         self.shape[0] = examples_per_minibatch
-        self.delta = self.add_param(delta, self.shape, name='delta', trainable=False, finetune=True)
+        self.delta = self.add_param(delta, self.shape, name='delta', trainable=True, finetune=True)
         print self.output_shape
 
     def get_output_for(self, input_data, pretrain=True, one=False, **kwargs):
@@ -63,7 +63,7 @@ def finetune_loss_func(X, latents):
 
 
 def finetune_train_fn(X, network, loss):
-    params = get_all_params(network, trainable=False, finetune=True)
+    params = get_all_params(network, finetune=True)
     updates = lasagne.updates.adadelta(loss, params)
     train_fn = theano.function([X], loss, updates=updates)
     return train_fn
@@ -173,7 +173,7 @@ def loss_func(X, y, network, latents, C, mean_C, lambduh=0.75):
 
 
 def pretrain_fn(X, y, network, loss):
-    params = get_all_params(network, trainable=True)
+    params = get_all_params(network, trainable=True, finetune=False)
     updates = lasagne.updates.adadelta(loss, params)
     pretrain_fn = theano.function([X, y], loss, updates=updates)
     return pretrain_fn
@@ -223,7 +223,7 @@ def main(*args, **kwargs):
 
     # load data
     snr = -6
-    k = 10. ** (snr/20.); print k
+    k = 10. ** (snr/10.); print k
     x_path = '../data/moonlight_sample.wav'
     n_path = '../data/golf_club_bar_lunch_time.wav'
     signal, noise = load_soundfiles(x_path, n_path)
@@ -297,12 +297,12 @@ def main(*args, **kwargs):
         print loss/minibatches
 
         if True:
-            X_hat = finetune_predict_fn(sample_data['noisy'])
+            X_hat = finetune_predict_fn(sample_data['sample'])
             x_hat = ISTFT(X_hat[:, 0, :, :], X_hat[:, 1, :, :])
             mse = mean_squared_error(sample_data['Scc'], x_hat)
             print 'finetune mse: %.3E' % mse
             wavwrite(x_hat, join(p, 'wav/fine_xhat.wav'), fs=fs, enc='pcm16')
-            wtf = ISTFT(sample_data['noisy'][:,0,:,:], sample_data['noisy'][:,1,:,:])
+            wtf = ISTFT(sample_data['sample'][:,0,:,:], sample_data['sample'][:,1,:,:])
             wavwrite(wtf, join(p, 'wav/wtf.wav'), fs=fs, enc='pcm16')
             # save model
             # plots
