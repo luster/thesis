@@ -331,4 +331,4 @@ if __name__ == '__main__':
     try:
         main()
     except Exception, e:
-        post_slack(e)
+        post_slack(str(e))
