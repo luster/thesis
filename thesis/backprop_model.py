@@ -273,7 +273,7 @@ def main(*args, **kwargs):
             np.savez(join(p,'npz/pt_finetune_layer.npz'), *lasagne.layers.get_all_param_values(finetune_layer))
             # plots
             with open(iter_fname, 'a') as f:
-                line = ','.join([i, loss/minibatches, mse, 'pretrain', '\n'])
+                line = '{},{},{},{}\n'.format(i, loss/minibatches, mse, 'pretrain')
                 f.write(line)
 
     # create back-prop net
@@ -315,7 +315,7 @@ def main(*args, **kwargs):
             wtf = ISTFT(sample_data['sample'][:,0,:,:], sample_data['sample'][:,1,:,:])
             wavwrite(wtf, join(p, 'wav/wtf.wav'), fs=fs, enc='pcm16')
             with open(iter_fname, 'a') as f:
-                line = ','.join([i, loss/minibatches, mse, 'finetune', '\n'])
+                line = '{},{},{},{}\n'.format(i, loss/minibatches, mse, 'finetune')
                 f.write(line)
             # save model
             np.savez(join(p,'npz/ft_network.npz'), *lasagne.layers.get_all_param_values(network))
