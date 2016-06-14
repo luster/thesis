@@ -16,7 +16,8 @@ dtype = theano.config.floatX
 from cfg import *
 from dataset import load_soundfiles, build_dataset_one_signal_frame
 from util import ISTFT, normalize
-n_noise_only_examples = int(percent_noise_only_examples * examples_per_minibatch)
+n_noise_only_examples = int(
+    percent_noise_only_examples * examples_per_minibatch)
 
 get_output = lasagne.layers.get_output
 get_all_params = lasagne.layers.get_all_params
@@ -72,10 +73,10 @@ def conv2d(incoming, numfilters, shape, stride=(1, 1,)):
 
 def deconv2d(incoming, numfilters, shape, stride=(1, 1)):
     out = lasagne.layers.TransposedConv2DLayer(incoming, numfilters, shape,
-        stride=stride, crop=0, untie_biases=False,
-        W=lasagne.init.GlorotUniform(),
-        b=lasagne.init.Constant(0.),
-        nonlinearity=lasagne.nonlinearities.rectify)
+                                               stride=stride, crop=0, untie_biases=False,
+                                               W=lasagne.init.GlorotUniform(),
+                                               b=lasagne.init.Constant(0.),
+                                               nonlinearity=lasagne.nonlinearities.rectify)
     out = batch_norm(out)
     print out.output_shape
     return out
@@ -144,7 +145,8 @@ def get_sample_data(signal, noise, framelength, k, minibatches, examples_per_min
     noisy = ISTFT(dataset['noise_real'], dataset['noise_imag'])
     clean = ISTFT(dataset['clean_real'], dataset['clean_imag'])
     Scc = normalize(clean, dataset['clean_time_signal'])[start:end]
-    baseline_mse = mean_squared_error(dataset['clean_time_signal'][start:end], Scc)
+    baseline_mse = mean_squared_error(
+        dataset['clean_time_signal'][start:end], Scc)
     print 'baseline mse: ', baseline_mse
     sample = np.zeros((1, 2, freq_bins, time_bins))
     sample[:, 0, :, :] = dataset['signal_real'][:, idx:idx+time_bins]
@@ -179,17 +181,18 @@ def main(*args, **kwargs):
     niter = 100
 
     sample_data = get_sample_data(signal, noise,
-        framelength, k,
-        minibatches, examples_per_minibatch, freq_bins, time_bins,
-        n_noise_only_examples)
+                                  framelength, k,
+                                  minibatches, examples_per_minibatch, freq_bins, time_bins,
+                                  n_noise_only_examples)
 
-    p = join('sim', datetime.now(pytz.timezone('America/New_York')).strftime('%Y-%m-%d_%H-%M'))
+    p = join('sim', datetime.now(
+        pytz.timezone('America/New_York')).strftime('%Y-%m-%d_%H-%M'))
     if not os.path.exists(p):
         os.makedirs(p)
         os.makedirs(join(p, 'wav'))
     wavwrite(sample_data['Scc'], join(p, 'wav/Scc.wav'), fs=fs, enc='pcm16')
-    wavwrite(sample_data['noisy'], join(p, 'wav/noisy.wav'), fs=fs, enc='pcm16')
-
+    wavwrite(sample_data['noisy'], join(
+        p, 'wav/noisy.wav'), fs=fs, enc='pcm16')
 
     for i in range(niter):
         dataset = build_dataset_one_signal_frame(
@@ -212,14 +215,12 @@ def main(*args, **kwargs):
 
         if i % 5 == 0:
             X_hat = predict_fn(sample_data['sample'])
-            x_hat = ISTFT(X_hat[:,0,:,:], X_hat[:,1,:,:])
+            x_hat = ISTFT(X_hat[:, 0, :, :], X_hat[:, 1, :, :])
             mse = mean_squared_error(sample_data['Scc'], x_hat)
             print 'mse: %.3E' % mse
             wavwrite(x_hat, join(p, 'wav/xhat.wav'), fs=fs, enc='pcm16')
             # save model
             # plots
-
-
 
     # create back-prop net
 
