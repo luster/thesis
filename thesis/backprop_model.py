@@ -10,6 +10,7 @@ import lasagne
 from lasagne.layers import batch_norm
 from scikits.audiolab import wavwrite
 from sklearn.metrics import mean_squared_error
+from slack import post_slack
 
 dtype = theano.config.floatX
 
@@ -127,7 +128,7 @@ def build_network(X, shape, percent_background_latents):
     sh[0] = None
     inlayer = batch_norm(lasagne.layers.InputLayer(sh, X))
     print inlayer.output_shape
-    finetune_layer = FineTuneLayer(inlayer)
+    finetune_layer = FineTuneLayer(inlayer, delta=lasagne.init.Normal())
     h0 = conv2d(finetune_layer, 16, (8, 1), (1, 1))
     h1 = conv2d(h0, 16, (8, 1), (2, 1))
     h2 = conv2d(h1, 32, (1, 8), (1, 1))
@@ -204,6 +205,8 @@ def get_sample_data(signal, noise, framelength, k, minibatches,
 
 
 def main(*args, **kwargs):
+    post_slack('starting sim')
+    stime = time.time()
     X = T.tensor4('X')
     y = T.matrix('y')
     shape = (examples_per_minibatch, 2, freq_bins, time_bins)
@@ -232,10 +235,14 @@ def main(*args, **kwargs):
     if not os.path.exists(p):
         os.makedirs(p)
         os.makedirs(join(p, 'wav'))
+        os.makedirs(join(p, 'npz'))
     wavwrite(sample_data['Scc'], join(p, 'wav/Scc.wav'), fs=fs, enc='pcm16')
     wavwrite(sample_data['noisy'], join(p, 'wav/noisy.wav'), fs=fs, enc='pcm16')
+    iter_fname = os.path.join(p, 'graphs.txt')
 
     for i in range(niter):
+        if i % 100 == 0 and i != 0:
+            post_slack('pretrain: iter %d of %d, avg loss @ %.4E, mse @ %.4E' % (i+1,niter,loss/minibatches,mse))
         dataset = build_dataset_one_signal_frame(
             signal, noise,
             framelength, k,
@@ -261,7 +268,13 @@ def main(*args, **kwargs):
             print 'mse: %.3E' % mse
             wavwrite(x_hat, join(p, 'wav/xhat.wav'), fs=fs, enc='pcm16')
             # save model
+            np.savez(join(p,'npz/pt_network.npz'), *lasagne.layers.get_all_param_values(network))
+            np.savez(join(p,'npz/pt_latents.npz'), *lasagne.layers.get_all_param_values(latents))
+            np.savez(join(p,'npz/pt_finetune_layer.npz'), *lasagne.layers.get_all_param_values(finetune_layer))
             # plots
+            with open(iter_fname, 'a') as f:
+                line = ','.join([i, loss/minibatches, mse, 'pretrain', '\n'])
+                f.write(line)
 
     # create back-prop net
     # finetune_network = build_finetune_network(X, shape, latents)
@@ -273,6 +286,8 @@ def main(*args, **kwargs):
 
     # train
     for i in range(niter):
+        if i % 100 == 0 and i != 0:
+            post_slack('finetune: iter %d of %d, avg loss @ %.4E, mse @ %.4E' % (i+1,niter,loss/minibatches,mse))
         dataset = build_dataset_one_signal_frame(
             signal, noise,
             framelength, k,
@@ -299,9 +314,21 @@ def main(*args, **kwargs):
             wavwrite(x_hat, join(p, 'wav/fine_xhat.wav'), fs=fs, enc='pcm16')
             wtf = ISTFT(sample_data['sample'][:,0,:,:], sample_data['sample'][:,1,:,:])
             wavwrite(wtf, join(p, 'wav/wtf.wav'), fs=fs, enc='pcm16')
+            with open(iter_fname, 'a') as f:
+                line = ','.join([i, loss/minibatches, mse, 'finetune', '\n'])
+                f.write(line)
             # save model
+            np.savez(join(p,'npz/ft_network.npz'), *lasagne.layers.get_all_param_values(network))
+            np.savez(join(p,'npz/ft_latents.npz'), *lasagne.layers.get_all_param_values(latents))
+            np.savez(join(p,'npz/ft_finetune_layer.npz'), *lasagne.layers.get_all_param_values(finetune_layer))
             # plots
+
+    ttime = time.time()
+    post_slack('done with sim, total time: %.3f min' % (ttime-stime)/60.)
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception, e:
+        post_slack(e)
