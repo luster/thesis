@@ -33,11 +33,14 @@ class FineTuneLayer(lasagne.layers.Layer):
         print self.output_shape
 
     def get_output_for(self, input_data, pretrain=True, one=False, **kwargs):
-        if pretrain:
+        if pretrain and not one:
             return input_data + 0.0 * self.delta
-        if one:
-            return input_data + self.delta[0, :, :, :]
-        return input_data + self.delta
+        elif pretrain and one:
+            return input_data + 0.0 * self.delta[0, :, :, :]
+        elif not pretrain and not one:
+            return input_data + self.delta
+        else:
+            return input_data + self.delta * self.delta[0, :, :, :]
 
 
 # def build_finetune_network(X, shape, latents):
@@ -215,7 +218,7 @@ def main(*args, **kwargs):
     loss = loss_func(X, y, network, latents, C, mean_C, lambduh)
     train_fn = pretrain_fn(X, y, network, loss)
 
-    prediction = get_output(network, deterministic=True, reconstruct=True, pretrain=True)
+    prediction = get_output(network, deterministic=True, reconstruct=True, pretrain=True, one=True)
     predict_fn = theano.function([X], prediction, allow_input_downcast=True)
 
     # load data
