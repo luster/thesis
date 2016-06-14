@@ -51,7 +51,7 @@ def finetune_loss_func(X, latents):
     f_x_sig = get_output(latents, pretrain=True)[:, n+1:, :, :]
     sig = lasagne.objectives.squared_error(f_xtilde_sig, f_x_sig).mean()
     noise = (f_xtilde_noise**2).mean()
-    print 'sig:', sig.eval(), 'noise:', noise.eval()
+    # print 'sig:', sig.eval(), 'noise:', noise.eval()
     return sig + noise
 
 
