@@ -297,12 +297,12 @@ def main(*args, **kwargs):
         print loss/minibatches
 
         if True:
-            X_hat = finetune_predict_fn(sample_data['sample'])
+            X_hat = finetune_predict_fn(sample_data['noisy'])
             x_hat = ISTFT(X_hat[:, 0, :, :], X_hat[:, 1, :, :])
             mse = mean_squared_error(sample_data['Scc'], x_hat)
             print 'finetune mse: %.3E' % mse
             wavwrite(x_hat, join(p, 'wav/fine_xhat.wav'), fs=fs, enc='pcm16')
-            wtf = ISTFT(sample_data['sample'][:,0,:,:], sample_data['sample'][:,1,:,:])
+            wtf = ISTFT(sample_data['noisy'][:,0,:,:], sample_data['noisy'][:,1,:,:])
             wavwrite(wtf, join(p, 'wav/wtf.wav'), fs=fs, enc='pcm16')
             # save model
             # plots
