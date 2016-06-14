@@ -43,14 +43,6 @@ class FineTuneLayer(lasagne.layers.Layer):
             return input_data + self.delta[0, :, :, :]
 
 
-# def build_finetune_network(X, shape, latents):
-#     sh = list(shape)
-#     sh[0] = None
-#     inlayer = lasagne.layers.InputLayer(sh, X)
-#     network = FineTuneLayer(inlayer, X, latents=latents)
-#     return network
-
-
 def finetune_loss_func(X, latents):
     n = latents.n
     f_x_tilde = get_output(latents, pretrain=True)
