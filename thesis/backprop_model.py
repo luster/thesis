@@ -63,7 +63,7 @@ def finetune_loss_func(X, latents):
 
 
 def finetune_train_fn(X, network, loss):
-    params = get_all_params(network, finetune=True)
+    params = get_all_params(network, trainable=True, finetune=True)
     updates = lasagne.updates.adadelta(loss, params)
     train_fn = theano.function([X], loss, updates=updates)
     return train_fn
@@ -223,7 +223,7 @@ def main(*args, **kwargs):
 
     # load data
     snr = -6
-    k = 10. ** (snr/10.); print k
+    k = 10. ** (-snr/10.); print k
     x_path = '../data/moonlight_sample.wav'
     n_path = '../data/golf_club_bar_lunch_time.wav'
     signal, noise = load_soundfiles(x_path, n_path)
@@ -295,6 +295,7 @@ def main(*args, **kwargs):
             te = time.time()
             print 'loss: %.3f iter %d/%d/%d/%d took %.3f sec' % (l, batch_idx+1, minibatches, i, niter, te-ts)
         print loss/minibatches
+        print np.mean(finetune_layer.delta.eval())
 
         if True:
             X_hat = finetune_predict_fn(sample_data['sample'])

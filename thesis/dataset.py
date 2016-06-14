@@ -56,6 +56,7 @@ def build_dataset_one_signal_frame(x_signal, x_noise, framelength, k, num_miniba
     x_clean = np.copy(x_signal)
 
     # prevent clipping
+    print 'k = ', k
     if k < 1:
         x_signal = x_signal + k * x_noise[0:len(x_signal)]
     else:
