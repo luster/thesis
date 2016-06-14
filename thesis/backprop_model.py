@@ -23,6 +23,49 @@ get_output = lasagne.layers.get_output
 get_all_params = lasagne.layers.get_all_params
 
 
+class FineTuneLayer(lasagne.layers.Layer):
+
+    def __init__(self, incoming, delta=lasagne.init.Constant(), **kwargs):
+        super(FineTuneLayer, self).__init__(incoming)
+        self.shape = list(incoming.output_shape)
+        self.shape[0] = examples_per_minibatch
+        self.delta = self.add_param(delta, self.shape, name='delta', trainable=False, finetune=True)
+        print self.output_shape
+
+    def get_output_for(self, input_data, pretrain=True, one=False, **kwargs):
+        if pretrain:
+            return input_data
+        if one:
+            return input_data + self.delta[0, :, :, :]
+        return input_data + self.delta
+
+
+# def build_finetune_network(X, shape, latents):
+#     sh = list(shape)
+#     sh[0] = None
+#     inlayer = lasagne.layers.InputLayer(sh, X)
+#     network = FineTuneLayer(inlayer, X, latents=latents)
+#     return network
+
+
+def finetune_loss_func(X, latents):
+    n = latents.n
+    f_x_tilde = get_output(latents, pretrain=True)
+    f_xtilde_sig = f_x_tilde[:, n+1:, :, :]
+    f_xtilde_noise = f_x_tilde[:, 0:n, :, :]
+    f_x_sig = get_output(latents, pretrain=False)[:, n+1:, :, :]
+    sig = lasagne.objectives.squared_error(f_xtilde_sig, f_x_sig).mean()
+    noise = (f_xtilde_noise**2).mean()
+    return sig + noise
+
+
+def finetune_train_fn(X, network, loss):
+    params = get_all_params(network, trainable=False, finetune=True)
+    updates = lasagne.updates.adadelta(loss, params)
+    train_fn = theano.function([X], loss, updates=updates)
+    return train_fn
+
+
 class ZeroOutBackgroundLatentsLayer(lasagne.layers.Layer):
 
     def __init__(self, incoming, **kwargs):
@@ -87,7 +130,8 @@ def build_network(X, shape, percent_background_latents):
     sh[0] = None
     inlayer = batch_norm(lasagne.layers.InputLayer(sh, X))
     print inlayer.output_shape
-    h0 = conv2d(inlayer, 16, (8, 1), (1, 1))
+    finetune_layer = FineTuneLayer(inlayer)
+    h0 = conv2d(finetune_layer, 16, (8, 1), (1, 1))
     h1 = conv2d(h0, 16, (8, 1), (2, 1))
     h2 = conv2d(h1, 32, (1, 8), (1, 1))
     h3 = conv2d(h2, 32, (1, 8), (1, 2))
@@ -104,7 +148,7 @@ def build_network(X, shape, percent_background_latents):
     d1 = deconv2d(d2, 16, (1, 8), (1, 1))
     d0 = deconv2d(d1, 16, (8, 1), (2, 1))
     network = deconv2d(d0, 2, (9, 1), (1, 1))
-    return network, latents
+    return network, latents, finetune_layer
 
 
 def make_c_matrix(latents, n_noise_only_examples, minibatches):
@@ -132,7 +176,9 @@ def pretrain_fn(X, y, network, loss):
     return pretrain_fn
 
 
-def get_sample_data(signal, noise, framelength, k, minibatches, examples_per_minibatch, freq_bins, time_bins, n_noise_only_examples):
+def get_sample_data(signal, noise, framelength, k, minibatches,
+    examples_per_minibatch, freq_bins, time_bins, n_noise_only_examples):
+
     dataset = build_dataset_one_signal_frame(
         signal, noise,
         framelength, k,
@@ -147,7 +193,7 @@ def get_sample_data(signal, noise, framelength, k, minibatches, examples_per_min
     Scc = normalize(clean, dataset['clean_time_signal'])[start:end]
     baseline_mse = mean_squared_error(
         dataset['clean_time_signal'][start:end], Scc)
-    print 'baseline mse: ', baseline_mse
+    print 'baseline mse: %.3E' % baseline_mse
     sample = np.zeros((1, 2, freq_bins, time_bins))
     sample[:, 0, :, :] = dataset['signal_real'][:, idx:idx+time_bins]
     sample[:, 1, :, :] = dataset['signal_imag'][:, idx:idx+time_bins]
@@ -164,12 +210,12 @@ def main(*args, **kwargs):
     X = T.tensor4('X')
     y = T.matrix('y')
     shape = (examples_per_minibatch, 2, freq_bins, time_bins)
-    network, latents = build_network(X, shape, percent_background_latents)
+    network, latents, finetune_layer = build_network(X, shape, percent_background_latents)
     C, mean_C = make_c_matrix(latents, n_noise_only_examples, minibatches)
     loss = loss_func(X, y, network, latents, C, mean_C, lambduh)
     train_fn = pretrain_fn(X, y, network, loss)
 
-    prediction = get_output(network, deterministic=True, reconstruct=True)
+    prediction = get_output(network, deterministic=True, reconstruct=True, pretrain=True)
     predict_fn = theano.function([X], prediction, allow_input_downcast=True)
 
     # load data
@@ -178,7 +224,6 @@ def main(*args, **kwargs):
     x_path = '../data/moonlight_sample.wav'
     n_path = '../data/golf_club_bar_lunch_time.wav'
     signal, noise = load_soundfiles(x_path, n_path)
-    niter = 500
 
     sample_data = get_sample_data(signal, noise,
                                   framelength, k,
@@ -223,8 +268,41 @@ def main(*args, **kwargs):
             # plots
 
     # create back-prop net
+    # finetune_network = build_finetune_network(X, shape, latents)
+    finetune_loss = finetune_loss_func(X, latents)
+    ft_train_fn = finetune_train_fn(X, latents, finetune_loss)
+
+    finetune_prediction = get_output(finetune_layer, deterministic=True, pretrain=False, one=True)
+    finetune_predict_fn = theano.function([X], finetune_prediction, allow_input_downcast=True)
 
     # train
+    for i in range(niter):
+        dataset = build_dataset_one_signal_frame(
+            signal, noise,
+            framelength, k,
+            minibatches, examples_per_minibatch, freq_bins, time_bins,
+            n_noise_only_examples, signal_only=True)
+
+        loss = 0
+        for batch_idx in range(minibatches):
+            ts = time.time()
+            l = ft_train_fn(
+                dataset['training_data'][batch_idx, :, :, :, :]
+            )
+            loss += l
+            te = time.time()
+            print 'loss: %.3f iter %d/%d/%d/%d took %.3f sec' % (l, batch_idx+1, minibatches, i, niter, te-ts)
+        print loss/minibatches
+
+        if True:
+            X_hat = finetune_predict_fn(sample_data['sample'])
+            x_hat = ISTFT(X_hat[:, 0, :, :], X_hat[:, 1, :, :])
+            mse = mean_squared_error(sample_data['Scc'], x_hat)
+            print 'finetune mse: %.3E' % mse
+            wavwrite(x_hat, join(p, 'wav/fine_xhat.wav'), fs=fs, enc='pcm16')
+            # save model
+            # plots
+
 
 if __name__ == '__main__':
     main()

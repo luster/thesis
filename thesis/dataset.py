@@ -33,7 +33,7 @@ def load_soundfiles(signal, noise):
 
 
 def build_dataset_one_signal_frame(x_signal, x_noise, framelength, k, num_minibatches,
-    minibatch_size, specbinnum, numtimebins, n_noise_only_examples):
+    minibatch_size, specbinnum, numtimebins, n_noise_only_examples, signal_only=False):
     """
         x_signal: CLEAN "one frame" --> equivalent length to one spectrogram
         x_noise: NOISE longer noise-only signal
@@ -74,7 +74,7 @@ def build_dataset_one_signal_frame(x_signal, x_noise, framelength, k, num_miniba
 
     for which_training_batch in range(num_minibatches):
         for which_training_datum in range(minibatch_size):
-            if which_training_datum in noise_minibatch_range:
+            if which_training_datum in noise_minibatch_range and not signal_only:
                 re = noise_real
                 im = noise_imag
                 label = background
