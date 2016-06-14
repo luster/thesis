@@ -45,17 +45,19 @@ class FineTuneLayer(lasagne.layers.Layer):
 
 def finetune_loss_func(X, latents):
     n = latents.n
-    f_x_tilde = get_output(latents, pretrain=True)
+    f_x_tilde = get_output(latents, pretrain=False)
     f_xtilde_sig = f_x_tilde[:, n+1:, :, :]
     f_xtilde_noise = f_x_tilde[:, 0:n, :, :]
-    f_x_sig = get_output(latents, pretrain=False)[:, n+1:, :, :]
+    f_x_sig = get_output(latents, pretrain=True)[:, n+1:, :, :]
     sig = lasagne.objectives.squared_error(f_xtilde_sig, f_x_sig).mean()
     noise = (f_xtilde_noise**2).mean()
+    print 'sig:', sig.eval(), 'noise:', noise.eval()
     return sig + noise
 
 
 def finetune_train_fn(X, network, loss):
     params = get_all_params(network, trainable=True, finetune=True)
+    print 'finetune params', params
     updates = lasagne.updates.adadelta(loss, params)
     train_fn = theano.function([X], loss, updates=updates)
     return train_fn
