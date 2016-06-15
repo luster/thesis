@@ -73,7 +73,7 @@ def make_c_matrix(latents, n_noise_only_examples, examples_per_minibatch):
     sizeof_c = list(lasagne.layers.get_output_shape(latents))
     sizeof_c[0] = examples_per_minibatch
     C = np.zeros(sizeof_c, dtype)
-    C[0:n_noise_only_examples, :, latents.n+1:, :] = 1
+    C[0:n_noise_only_examples, latents.n+1:, :, :] = 1
     C_mat = theano.shared(np.asarray(C, dtype=dtype), borrow=True)
     mean_C = theano.shared(C.mean(), borrow=True)
     return C_mat, mean_C
