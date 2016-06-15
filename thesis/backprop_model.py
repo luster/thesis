@@ -44,7 +44,7 @@ class FineTuneLayer(lasagne.layers.Layer):
             return input_data + self.delta[0, :, :, :]
 
 
-def finetune_loss_func(X, latents):
+def finetune_loss_func(X, latents, lambduh=4):
     n = latents.n
     f_x_tilde = get_output(latents, pretrain=False)
     f_xtilde_sig = f_x_tilde[:, n+1:, :, :]
@@ -53,7 +53,7 @@ def finetune_loss_func(X, latents):
     sig = lasagne.objectives.squared_error(f_xtilde_sig, f_x_sig).mean()
     noise = (f_xtilde_noise**2).mean()
     # print 'sig:', sig.eval(), 'noise:', noise.eval()
-    return sig + noise
+    return sig + lambduh * noise
 
 
 def finetune_train_fn(X, network, loss):
@@ -240,7 +240,7 @@ def main(*args, **kwargs):
     wavwrite(sample_data['noisy'], join(p, 'wav/noisy.wav'), fs=fs, enc='pcm16')
     iter_fname = os.path.join(p, 'graphs.txt')
 
-    for i in range(niter):
+    for i in range(niter_pretrain):
         if i % 100 == 0 and i != 0:
             post_slack('pretrain: iter %d of %d, avg loss @ %.4E, mse @ %.4E' % (i+1,niter,loss/minibatches,mse))
         dataset = build_dataset_one_signal_frame(
@@ -285,9 +285,9 @@ def main(*args, **kwargs):
     finetune_predict_fn = theano.function([X], finetune_prediction, allow_input_downcast=True)
 
     # train
-    for i in range(niter):
+    for i in range(niter_finetune):
         if i % 100 == 0 and i != 0:
-            post_slack('finetune: iter %d of %d, avg loss @ %.4E, mse @ %.4E' % (i+1,niter,loss/minibatches,mse))
+            post_slack('finetune: iter %d of %d, avg loss @ %.4E, mse @ %.4E' % (i+1, niter, loss/minibatches, mse))
         dataset = build_dataset_one_signal_frame(
             signal, noise,
             framelength, k,
@@ -324,7 +324,7 @@ def main(*args, **kwargs):
             # plots
 
     ttime = time.time()
-    post_slack('done with sim, total time: %.3f min' % (ttime-stime)/60.)
+    post_slack('done with sim, total time: %.3f min' % ((ttime-stime)/60.))
 
 
 if __name__ == '__main__':
