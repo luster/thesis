@@ -242,7 +242,7 @@ def main(*args, **kwargs):
 
     for i in range(niter_pretrain):
         if i % 100 == 0 and i != 0:
-            post_slack('pretrain: iter %d of %d, avg loss @ %.4E, mse @ %.4E' % (i+1,niter,loss/minibatches,mse))
+            post_slack('pretrain: iter %d of %d, avg loss @ %.4E, mse @ %.4E' % (i+1,niter_pretrain,loss/minibatches,mse))
         dataset = build_dataset_one_signal_frame(
             signal, noise,
             framelength, k,
@@ -258,7 +258,7 @@ def main(*args, **kwargs):
             )
             loss += l
             te = time.time()
-            print 'loss: %.3f iter %d/%d/%d/%d took %.3f sec' % (l, batch_idx+1, minibatches, i, niter, te-ts)
+            print 'loss: %.3f iter %d/%d/%d/%d took %.3f sec' % (l, batch_idx+1, minibatches, i, niter_pretrain, te-ts)
         print loss/minibatches
 
         if True:
@@ -287,7 +287,7 @@ def main(*args, **kwargs):
     # train
     for i in range(niter_finetune):
         if i % 100 == 0 and i != 0:
-            post_slack('finetune: iter %d of %d, avg loss @ %.4E, mse @ %.4E' % (i+1, niter, loss/minibatches, mse))
+            post_slack('finetune: iter %d of %d, avg loss @ %.4E, mse @ %.4E' % (i+1, niter_finetune, loss/minibatches, mse))
         dataset = build_dataset_one_signal_frame(
             signal, noise,
             framelength, k,
@@ -302,7 +302,7 @@ def main(*args, **kwargs):
             )
             loss += l
             te = time.time()
-            print 'loss: %.3f iter %d/%d/%d/%d took %.3f sec' % (l, batch_idx+1, minibatches, i, niter, te-ts)
+            print 'loss: %.3f iter %d/%d/%d/%d took %.3f sec' % (l, batch_idx+1, minibatches, i, niter_finetune, te-ts)
         print loss/minibatches
         print np.mean(finetune_layer.delta.eval())
 

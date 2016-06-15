@@ -22,42 +22,19 @@ def generate_graph():
     fname = os.path.join(latest, 'graphs.txt')
     with open(fname, 'r') as f:
         r = csv.reader(f)
-        loss_mag = []
-        loss_phase = []
-        mse_dc = []
-        mse_dd = []
+        loss = []
+        mse = []
         for line in r:
-            loss_mag.append(float(line[1]))
-            loss_phase.append(float(line[2]))
-            mse_dc.append(float(line[3]))
-            mse_dd.append(float(line[4]))
-        progress = int(line[0])/768./2. * 100
+            loss.append(float(line[1]))
+            mse.append(float(line[2]))
         fig = plt.figure(figsize=(32,16), dpi=80)
         # plt.title('{}%'.format(progress))
-        plt.subplot(421)
-        plt.semilogy(loss_mag)
-        plt.title('loss_mag = %.4f, progress = %d%%' % (loss_mag[-1], progress))
-        plt.subplot(422)
-        plt.semilogy(loss_phase)
-        plt.title('loss_phase = %.4f' % loss_phase[-1])
-        plt.subplot(423)
-        plt.semilogy(mse_dc)
-        plt.title('mse_dc = %.4f' % mse_dc[-1])
-        plt.subplot(424)
-        plt.semilogy(mse_dd)
-        plt.title('mse_dd = %.4f' % mse_dd[-1])
-        plt.subplot(425)
-        plt.plot(loss_mag)
-        plt.title('loss_mag progress = %d%%' % (progress))
-        plt.subplot(426)
-        plt.plot(loss_phase)
-        plt.title('loss_phase')
-        plt.subplot(427)
-        plt.plot(mse_dc)
-        plt.title('mse_dc')
-        plt.subplot(428)
-        plt.plot(mse_dd)
-        plt.title('mse_dd')
+        plt.subplot(211)
+        plt.plot(loss)
+        plt.title('loss')
+        plt.subplot(212)
+        plt.plot(mse)
+        plt.title('mse')
         canvas = FigureCanvas(fig)
         tmp = StringIO()
         canvas.print_png(tmp)
