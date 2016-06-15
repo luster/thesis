@@ -135,8 +135,13 @@ def main(*args, **kwargs):
     loss = loss_func(X, y, network, latents, C, mean_C, lambduh)
     train_fn = pretrain_fn(X, y, network, loss)
 
+    # X_hat calculation
     prediction = get_output(network, deterministic=True, reconstruct=True, pretrain=True, one=True)
     predict_fn = theano.function([X], prediction, allow_input_downcast=True)
+
+    # latents calculation f(X)
+    f_x = get_output(latents, deterministic=True, pretrain=True, one=True)
+    f_x = theano.function([X], f_x, allow_input_downcast=True)
 
     # load data
     snr = -1
@@ -160,6 +165,9 @@ def main(*args, **kwargs):
     wavwrite(sample_data['noisy'], join(p, 'wav/noisy.wav'), fs=fs, enc='pcm16')
     iter_fname = os.path.join(p, 'graphs.txt')
 
+    #################################################################
+    #                           PRETRAIN                            #
+    #################################################################
     for i in range(niter_pretrain):
         if i % 100 == 0 and i != 0:
             post_slack('pretrain: iter %d of %d, avg loss @ %.4E, mse @ %.4E' % (i+1,niter_pretrain,loss/minibatches,mse))
@@ -196,15 +204,21 @@ def main(*args, **kwargs):
                 line = '{},{},{},{}\n'.format(i, loss/minibatches, mse, 'pretrain')
                 f.write(line)
 
+    import ipdb; ipdb.set_trace()
+    fx = f_x(sample_data['sample'])
+
     # create back-prop net
     # finetune_network = build_finetune_network(X, shape, latents)
-    finetune_loss = finetune_loss_func(X, latents)
+    finetune_loss, sig_loss, noise_loss = finetune_loss_func(X, latents)
+    # TODO: DO SOMETHING WITH SIG_LOSS AND NOISE_LOSS
     ft_train_fn = finetune_train_fn(X, latents, finetune_loss)
 
     finetune_prediction = get_output(finetune_layer, deterministic=True, pretrain=False, one=True)
     finetune_predict_fn = theano.function([X], finetune_prediction, allow_input_downcast=True)
 
-    # train
+    #################################################################
+    #                           FINETUNE                            #
+    #################################################################
     for i in range(niter_finetune):
         if i % 100 == 0 and i != 0:
             post_slack('finetune: iter %d of %d, avg loss @ %.4E, mse @ %.4E' % (i+1, niter_finetune, loss/minibatches, mse))
