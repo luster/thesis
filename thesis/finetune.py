@@ -43,4 +43,3 @@ def finetune_train_fn(X, network, loss):
     updates = lasagne.updates.nesterov_momentum(loss, params, learning_rate=0.05, momentum=0.95)
     train_fn = theano.function([X], loss, updates=updates)
     return train_fn
-

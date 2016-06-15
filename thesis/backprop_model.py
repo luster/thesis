@@ -81,10 +81,12 @@ def make_c_matrix(latents, n_noise_only_examples, examples_per_minibatch):
 
 def loss_func(X, y, network, latents, C, mean_C, lambduh=0.75):
     prediction = get_output(network)
-    loss = lasagne.objectives.squared_error(prediction, X)
-    regularization_term = y * ((C * get_output(latents)).mean())**2
-    loss = (loss.mean() + lambduh/mean_C * regularization_term).mean()
-    return loss
+    mse_term = lasagne.objectives.squared_error(prediction, X).sum(axis=[1,2,3])
+    regularization_term = y * ((C * get_output(latents))**2).sum(axis=[1,2,3])
+    scf = lambduh/mean_C
+    loss = (mse_term + scf * regularization_term)
+    print loss.shape
+    return loss.mean(), mse_term, scf * regularization_term
 
 
 def pretrain_fn(X, y, network, loss):
@@ -138,7 +140,7 @@ def main(*args, **kwargs):
     shape = (examples_per_minibatch, 2, freq_bins, time_bins)
     network, latents, finetune_layer = build_network(X, shape, percent_background_latents)
     C, mean_C = make_c_matrix(latents, n_noise_only_examples, examples_per_minibatch)
-    loss = loss_func(X, y, network, latents, C, mean_C, lambduh)
+    loss, mse_term, reg_term = loss_func(X, y, network, latents, C, mean_C, lambduh)
     train_fn = pretrain_fn(X, y, network, loss)
 
     # X_hat calculation
@@ -148,6 +150,10 @@ def main(*args, **kwargs):
     # latents calculation f(X)
     f_x = get_output(latents, deterministic=True, pretrain=True, one=True)
     f_x = theano.function([X], f_x, allow_input_downcast=True)
+
+    # pretrain loss function terms
+    mse_term = theano.function([X,y], mse_term)
+    reg_term = theano.function([X,y], reg_term)
 
     # load data
     snr = -1
@@ -190,10 +196,19 @@ def main(*args, **kwargs):
                 dataset['training_data'][batch_idx, :, :, :, :],
                 dataset['training_labels'][batch_idx, :, :],
             )
+            mterm = mse_term(
+                dataset['training_data'][batch_idx, :, :, :, :],
+                dataset['training_labels'][batch_idx, :, :],
+            )
+            rterm = reg_term(
+                dataset['training_data'][batch_idx, :, :, :, :],
+                dataset['training_labels'][batch_idx, :, :],
+            )
             loss += l
             te = time.time()
             print 'loss: %.3f iter %d/%d/%d/%d took %.3f sec' % (l, batch_idx+1, minibatches, i, niter_pretrain, te-ts)
-        print loss/minibatches
+            print 'mse_term: %.3f, reg_term: %.3f' % (mterm, reg_term)
+        # print loss/minibatches
 
         if True:
             fx = f_x(sample_data['only_noise'])
