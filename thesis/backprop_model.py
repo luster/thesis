@@ -152,7 +152,7 @@ def main(*args, **kwargs):
     f_x = theano.function([X], f_x, allow_input_downcast=True)
 
     # pretrain loss function terms
-    mse_term = theano.function([X,y], mse_term)
+    mse_term = theano.function([X], mse_term)
     reg_term = theano.function([X,y], reg_term)
 
     # load data
