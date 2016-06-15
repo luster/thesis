@@ -214,7 +214,7 @@ def main(*args, **kwargs):
             fx = f_x(sample_data['only_noise'])
             print 'avg noise power: %s, avg signal power: %s' % (
                 np.sum(fx[:,0:latents.n,:,:]**2)/latents.n,
-                np.sum(fx[:,latens.n+1:,:,:]**2)/(fx.shape[1]-latents.n)
+                np.sum(fx[:,latents.n+1:,:,:]**2)/(fx.shape[1]-latents.n)
             )
             X_hat = predict_fn(sample_data['sample'])
             x_hat = ISTFT(X_hat[:, 0, :, :], X_hat[:, 1, :, :])
