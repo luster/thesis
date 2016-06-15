@@ -97,6 +97,12 @@ def pretrain_fn(X, y, network, loss):
 def get_sample_data(signal, noise, framelength, k, minibatches,
     examples_per_minibatch, freq_bins, time_bins, n_noise_only_examples):
 
+    def _construct_sample(real, imag):
+        sample = np.zeros((1,2,freq_bins,time_bins))
+        sample[:,0,:,:] = real[:,0:0+time_bins]
+        sample[:,1,:,:] = imag[:,0:0+time_bins]
+        return sample
+
     dataset = build_dataset_one_signal_frame(
         signal, noise,
         framelength, k,
@@ -112,14 +118,14 @@ def get_sample_data(signal, noise, framelength, k, minibatches,
     baseline_mse = mean_squared_error(
         dataset['clean_time_signal'][start:end], Scc)
     print 'baseline mse: %.3E' % baseline_mse
-    sample = np.zeros((1, 2, freq_bins, time_bins))
-    sample[:, 0, :, :] = dataset['signal_real'][:, idx:idx+time_bins]
-    sample[:, 1, :, :] = dataset['signal_imag'][:, idx:idx+time_bins]
+    sample = _construct_sample(dataset['signal_real'], dataset['signal_imag'])
+    only_noise = _construct_sample(dataset['noise_real'], dataset['noise_imag'])
     dataset.update({
         'Scc': Scc,
         'clean': clean,
         'noisy': noisy,
         'sample': sample,
+        'only_noise': only_noise,
     })
     return dataset
 
@@ -190,6 +196,11 @@ def main(*args, **kwargs):
         print loss/minibatches
 
         if True:
+            fx = f_x(sample_data['only_noise'])
+            print 'avg noise power: %s, avg signal power: %s' % (
+                np.sum(fx[:,0:latents.n,:,:]**2)/latents.n,
+                np.sum(fx[:,latens.n+1:,:,:]**2)/(fx.shape[1]-latents.n)
+            )
             X_hat = predict_fn(sample_data['sample'])
             x_hat = ISTFT(X_hat[:, 0, :, :], X_hat[:, 1, :, :])
             mse = mean_squared_error(sample_data['Scc'], x_hat)
@@ -203,9 +214,6 @@ def main(*args, **kwargs):
             with open(iter_fname, 'a') as f:
                 line = '{},{},{},{}\n'.format(i, loss/minibatches, mse, 'pretrain')
                 f.write(line)
-
-    import ipdb; ipdb.set_trace()
-    fx = f_x(sample_data['sample'])
 
     # create back-prop net
     # finetune_network = build_finetune_network(X, shape, latents)
