@@ -94,7 +94,7 @@ def build_dataset_one_signal_frame(x_signal, x_noise, framelength, k, num_miniba
 
     return {
         'training_labels': training_labels.reshape(
-            training_labels.shape[0], training_labels.shape[1], 1),
+            training_labels.shape[0], training_labels.shape[1], 1, 1, 1),
         'training_data': training_data,
         'clean_real': clean_real,
         'clean_imag': clean_imag,

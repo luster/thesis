@@ -82,12 +82,11 @@ def make_c_matrix(latents, n_noise_only_examples, examples_per_minibatch):
 
 def loss_func(X, y, network, latents, C, mean_C, lambduh=0.75):
     prediction = get_output(network)
-    mse_term = lasagne.objectives.squared_error(prediction, X).sum(axis=[1,2,3]).transpose()
-    regularization_term = y * ((C * get_output(latents))**2).sum(axis=[1,2,3]).transpose()
+    mse_term = lasagne.objectives.squared_error(prediction, X).sum(axis=[1,2,3], keepdims=True)
+    regularization_term = y * ((C * get_output(latents))**2).sum(axis=[1,2,3], keepdims=True)
     scf = lambduh/mean_C
     loss = (mse_term + scf * regularization_term)
-    print loss.shape
-    return loss.mean(), mse_term, scf * regularization_term
+    return loss.mean(), mse_term, (scf * regularization_term)
 
 
 def pretrain_fn(X, y, network, loss):
@@ -137,7 +136,8 @@ def main(*args, **kwargs):
     post_slack('starting sim')
     stime = time.time()
     X = T.tensor4('X')
-    y = T.matrix('y')
+    # y = T.matrix('y')
+    y = T.tensor4('y')
     shape = (examples_per_minibatch, 2, freq_bins, time_bins)
     network, latents, finetune_layer = build_network(X, shape, percent_background_latents)
     C, mean_C = make_c_matrix(latents, n_noise_only_examples, examples_per_minibatch)
@@ -195,20 +195,21 @@ def main(*args, **kwargs):
             ts = time.time()
             l = train_fn(
                 dataset['training_data'][batch_idx, :, :, :, :],
-                dataset['training_labels'][batch_idx, :, :],
+                dataset['training_labels'][batch_idx, :, :, :, :],
             )
             mterm = mse_term(
                 dataset['training_data'][batch_idx, :, :, :, :],
-                dataset['training_labels'][batch_idx, :, :],
             )
             rterm = reg_term(
                 dataset['training_data'][batch_idx, :, :, :, :],
-                dataset['training_labels'][batch_idx, :, :],
+                dataset['training_labels'][batch_idx, :, :, :, :],
             )
             loss += l
             te = time.time()
             print 'loss: %.3f iter %d/%d/%d/%d took %.3f sec' % (l, batch_idx+1, minibatches, i, niter_pretrain, te-ts)
-            print 'mse_term: %.3f, reg_term: %.3f' % (mterm, reg_term)
+            # import ipdb; ipdb.set_trace()
+            mm = np.mean(mterm); rr = np.mean(rterm)
+            print 'mse_term: %.3f, reg_term: %.3f' % (mm, rr)
         # print loss/minibatches
 
         if True:
