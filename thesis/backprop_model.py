@@ -44,7 +44,7 @@ class FineTuneLayer(lasagne.layers.Layer):
             return input_data + self.delta[0, :, :, :]
 
 
-def finetune_loss_func(X, latents, lambduh=4):
+def finetune_loss_func(X, latents, lambduh=8):
     n = latents.n
     f_x_tilde = get_output(latents, pretrain=False)
     f_xtilde_sig = f_x_tilde[:, n+1:, :, :]
@@ -59,7 +59,7 @@ def finetune_loss_func(X, latents, lambduh=4):
 def finetune_train_fn(X, network, loss):
     params = get_all_params(network, trainable=True, finetune=True)
     print 'finetune params', params
-    updates = lasagne.updates.adadelta(loss, params)
+    updates = lasagne.updates.nesterov_momentum(loss, params, learning_rate=0.05, momentum=0.95)
     train_fn = theano.function([X], loss, updates=updates)
     return train_fn
 
@@ -220,7 +220,7 @@ def main(*args, **kwargs):
 
     # load data
     snr = -1
-    k = 10. ** (-snr/10.); print k
+    k = 10. ** (-snr/10.)
     x_path = '../data/moonlight_sample.wav'
     n_path = '../data/golf_club_bar_lunch_time.wav'
     signal, noise = load_soundfiles(x_path, n_path)

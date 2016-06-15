@@ -12,5 +12,5 @@ lambduh = 0.75
 
 fs = 44100
 
-niter_pretrain = 500
-niter_finetune = 500
+niter_pretrain = 1500
+niter_finetune = 1500
