@@ -136,7 +136,6 @@ def main(*args, **kwargs):
     post_slack('starting sim')
     stime = time.time()
     X = T.tensor4('X')
-    # y = T.matrix('y')
     y = T.tensor4('y')
     shape = (examples_per_minibatch, 2, freq_bins, time_bins)
     network, latents, finetune_layer = build_network(X, shape, percent_background_latents)
@@ -206,22 +205,22 @@ def main(*args, **kwargs):
             )
             loss += l
             te = time.time()
-            print 'loss: %.3f iter %d/%d/%d/%d took %.3f sec' % (l, batch_idx+1, minibatches, i, niter_pretrain, te-ts)
-            # import ipdb; ipdb.set_trace()
-            mm = np.mean(mterm); rr = np.mean(rterm)
-            print 'mse_term: %.3f, reg_term: %.3f' % (mm, rr)
+            print 'iter {}/{} took {}'.format(i+1, niter_pretrain, te-ts)
+            mm = np.mean(mterm)
+            rr = np.mean(rterm)
+            print '\tmse_term: %.3f, reg_term: %.3f' % (mm, rr)
         # print loss/minibatches
 
         if True:
             fx = f_x(sample_data['only_noise'])
-            print 'avg noise power: %s, avg signal power: %s' % (
+            print '\tavg noise power: %s, avg signal power: %s' % (
                 np.sum(fx[:,0:latents.n,:,:]**2)/latents.n,
                 np.sum(fx[:,latents.n+1:,:,:]**2)/(fx.shape[1]-latents.n)
             )
             X_hat = predict_fn(sample_data['sample'])
             x_hat = ISTFT(X_hat[:, 0, :, :], X_hat[:, 1, :, :])
             mse = mean_squared_error(sample_data['Scc'], x_hat)
-            print 'mse: %.3E' % mse
+            print '\tmse: %.3E' % mse
             wavwrite(x_hat, join(p, 'wav/xhat.wav'), fs=fs, enc='pcm16')
             # save model
             np.savez(join(p,'npz/pt_network.npz'), *lasagne.layers.get_all_param_values(network))
@@ -234,12 +233,14 @@ def main(*args, **kwargs):
 
     # create back-prop net
     # finetune_network = build_finetune_network(X, shape, latents)
-    finetune_loss, sig_loss, noise_loss = finetune_loss_func(X, latents)
-    # TODO: DO SOMETHING WITH SIG_LOSS AND NOISE_LOSS
+    finetune_loss, sig_loss, noise_loss = finetune_loss_func(X, latents, lambduh_finetune)
     ft_train_fn = finetune_train_fn(X, latents, finetune_loss)
 
     finetune_prediction = get_output(finetune_layer, deterministic=True, pretrain=False, one=True)
     finetune_predict_fn = theano.function([X], finetune_prediction, allow_input_downcast=True)
+
+    sig_term = theano.function([X], sig_loss)#, allow_input_downcast=True)
+    noise_term = theano.function([X], noise_loss)#, allow_input_downcast=True)
 
     #################################################################
     #                           FINETUNE                            #
@@ -259,17 +260,26 @@ def main(*args, **kwargs):
             l = ft_train_fn(
                 dataset['training_data'][batch_idx, :, :, :, :]
             )
+            signal_loss = sig_term(dataset['training_data'][batch_idx, :, :, :, :])
+            noise_loss = noise_term(dataset['training_data'][batch_idx, :, :, :, :])
             loss += l
             te = time.time()
-            print 'loss: %.3f iter %d/%d/%d/%d took %.3f sec' % (l, batch_idx+1, minibatches, i, niter_finetune, te-ts)
-        print loss/minibatches
-        print np.mean(finetune_layer.delta.eval())
+            print 'finetune iter {}/{}'.format(i+1, niter_finetune)
+            print '\tloss: %.3f, took %.3f sec' % (l, te-ts)
+            mm = np.mean(signal_loss)
+            rr = np.mean(noise_loss)
+            print '\tmse_term: {}, reg_term: {}'.format(mm, rr)
+        # print loss/minibatches
+        print '\tdelta: mean {}, var {}'.format(
+            np.mean(finetune_layer.delta.eval()),
+            np.var(finetune_layer.delta.eval())
+        )
 
         if True:
             X_hat = finetune_predict_fn(sample_data['sample'])
             x_hat = ISTFT(X_hat[:, 0, :, :], X_hat[:, 1, :, :])
             mse = mean_squared_error(sample_data['Scc'], x_hat)
-            print 'finetune mse: %.3E' % mse
+            print '\tfinetune mse: %.5E' % mse
             wavwrite(x_hat, join(p, 'wav/fine_xhat.wav'), fs=fs, enc='pcm16')
             wtf = ISTFT(sample_data['sample'][:,0,:,:], sample_data['sample'][:,1,:,:])
             wavwrite(wtf, join(p, 'wav/wtf.wav'), fs=fs, enc='pcm16')
