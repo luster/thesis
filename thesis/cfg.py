@@ -12,8 +12,8 @@ lambduh = 0.75
 
 fs = 44100
 
-niter_pretrain = 100
-niter_finetune = 100
+niter_pretrain = 500
+niter_finetune = 1000
 
 import lasagne
 get_output = lasagne.layers.get_output

@@ -24,17 +24,29 @@ def generate_graph():
         r = csv.reader(f)
         loss = []
         mse = []
+        floss = []
+        fmse = []
         for line in r:
-            loss.append(float(line[1]))
-            mse.append(float(line[2]))
+            if line[3] == 'pretrain':
+                loss.append(float(line[1]))
+                mse.append(float(line[2]))
+            else:
+                floss.append(float(line[1]))
+                fmse.append(float(line[2]))
         fig = plt.figure(figsize=(32,16), dpi=80)
         # plt.title('{}%'.format(progress))
-        plt.subplot(211)
+        plt.subplot(411)
         plt.plot(loss)
         plt.title('loss')
-        plt.subplot(212)
+        plt.subplot(412)
         plt.plot(mse)
         plt.title('mse')
+        plt.subplot(413)
+        plt.plot(floss)
+        plt.title('f_loss')
+        plt.subplot(414)
+        plt.plot(fmse)
+        plt.title('f_mse')
         canvas = FigureCanvas(fig)
         tmp = StringIO()
         canvas.print_png(tmp)
