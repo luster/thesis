@@ -17,6 +17,15 @@ from util import standard_specgram
 from util import stft
 from scikits.audiolab import wavwrite
 
+import matplotlib
+# http://www.astrobetter.com/plotting-to-a-file-in-python/
+matplotlib.use('PDF')
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+
+from matplotlib.backends.backend_pdf import PdfPages
+plt.rcParams.update({'font.size': 6})
+
 background = 1.
 foreground = 0.
 
@@ -40,14 +49,24 @@ def build_dataset_one_signal_frame(x_signal, x_noise, framelength, k, num_miniba
         x_noise: NOISE longer noise-only signal
         k: linear value of SNR
     """
+    n_start = int(len(x_noise)/2)
+
     def _norm_signal(x):
         x -= np.mean(x)
         return 0.5 * x / max(abs(x))
 
     def _avg_energy_scale(x, y):
         pwr_x = np.sum(x**2)
-        pwr_y = np.sum(y[0:len(x)]**2)
+        pwr_y = np.sum(y[n_start:n_start+len(x)]**2)
         return np.sqrt(pwr_y/pwr_x)
+
+    # import ipdb; ipdb.set_trace()
+    # override to use just sine waves for now
+    n = np.linspace(0,len(x_signal),len(x_signal))
+    x_signal = np.sin(2.*np.pi*440./44100. * n)
+    # plt.figure()
+    # plt.plot(x_signal[0:100])
+    # plt.savefig('x_sig_test.png')
 
     dtype = theano.config.floatX
 
@@ -58,10 +77,10 @@ def build_dataset_one_signal_frame(x_signal, x_noise, framelength, k, num_miniba
 
     # prevent clipping
     if k < 1:
-        x_signal = x_signal + k * x_noise[0:len(x_signal)]
+        x_signal = x_signal + k * x_noise[n_start:n_start+len(x_signal)]
     else:
-        x_signal = 1/k * x_signal + x_noise[0:len(x_signal)]
-    x_noise = x_noise[len(x_signal)+1:]
+        x_signal = 1/k * x_signal + x_noise[n_start:n_start+len(x_signal)]
+    x_noise = x_noise[0:n_start]
 
     noise_real, noise_imag = stft(x_noise)
     signal_real, signal_imag = stft(x_signal)

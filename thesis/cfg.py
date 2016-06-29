@@ -1,14 +1,14 @@
 minibatches = 1
 examples_per_minibatch = 16
-framelength = 256
+framelength = 128
 overlap = framelength/2
-freq_bins = 256
+freq_bins = 128
 time_bins = 64
 
 percent_background_latents = 0.25
 percent_noise_only_examples = 0.5
 
-lambduh = 0.75 * 2
+lambduh = 0.75
 lambduh_finetune = 8
 
 fs = 44100
@@ -28,3 +28,4 @@ n_noise_only_examples = int(
 import theano
 dtype = theano.config.floatX
 
+snr = 20  # db

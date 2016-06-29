@@ -26,18 +26,18 @@ from util import normalize
 
 def conv2d(incoming, numfilters, shape, stride=(1, 1,)):
     out = lasagne.layers.Conv2DLayer(incoming, numfilters, shape, stride=stride, pad=0, W=lasagne.init.GlorotUniform(
-    ), b=lasagne.init.Constant(0.), nonlinearity=lasagne.nonlinearities.rectify)
+    ), b=lasagne.init.Constant(0.), nonlinearity=lasagne.nonlinearities.elu)
     out = batch_norm(out)
     print out.output_shape
     return out
 
 
-def deconv2d(incoming, numfilters, shape, stride=(1, 1)):
+def deconv2d(incoming, numfilters, shape, stride=(1, 1), nonlinearity=lasagne.nonlinearities.elu):
     out = lasagne.layers.TransposedConv2DLayer(incoming, numfilters, shape,
                                                stride=stride, crop=0, untie_biases=False,
                                                W=lasagne.init.GlorotUniform(),
                                                b=lasagne.init.Constant(0.),
-                                               nonlinearity=lasagne.nonlinearities.rectify)
+                                               nonlinearity=nonlinearity)
     out = batch_norm(out)
     print out.output_shape
     return out
@@ -65,7 +65,7 @@ def build_network(X, shape, percent_background_latents):
     d2 = deconv2d(d3, 32, (1, 9), (1, 2))
     d1 = deconv2d(d2, 16, (1, 8), (1, 1))
     d0 = deconv2d(d1, 16, (8, 1), (2, 1))
-    network = deconv2d(d0, 2, (9, 1), (1, 1))
+    network = deconv2d(d0, 2, (9, 1), (1, 1), nonlinearity=lasagne.nonlinearities.identity)
     return network, latents, finetune_layer
 
 
@@ -122,12 +122,14 @@ def get_sample_data(signal, noise, framelength, k, minibatches,
     print 'baseline mse: %.3E' % baseline_mse
     sample = _construct_sample(dataset['signal_real'], dataset['signal_imag'])
     only_noise = _construct_sample(dataset['noise_real'], dataset['noise_imag'])
+    only_clean = _construct_sample(dataset['clean_real'], dataset['clean_imag'])
     dataset.update({
         'Scc': Scc,
         'clean': clean,
         'noisy': noisy,
         'sample': sample,
         'only_noise': only_noise,
+        'only_clean': only_clean,
     })
     return dataset
 
@@ -156,7 +158,6 @@ def main(*args, **kwargs):
     reg_term = theano.function([X,y], reg_term)
 
     # load data
-    snr = -1
     k = 10. ** (-snr/10.)
     x_path = '../data/moonlight_sample.wav'
     n_path = '../data/golf_club_bar_lunch_time.wav'
@@ -175,6 +176,8 @@ def main(*args, **kwargs):
         os.makedirs(join(p, 'npz'))
     wavwrite(sample_data['Scc'], join(p, 'wav/Scc.wav'), fs=fs, enc='pcm16')
     wavwrite(sample_data['noisy'], join(p, 'wav/noisy.wav'), fs=fs, enc='pcm16')
+    wtf = ISTFT(sample_data['sample'][:,0,:,:], sample_data['sample'][:,1,:,:])
+    wavwrite(wtf, join(p, 'wav/signalplusnoise.wav'), fs=fs, enc='pcm16')
     iter_fname = os.path.join(p, 'graphs.txt')
 
     #################################################################
@@ -205,22 +208,31 @@ def main(*args, **kwargs):
             )
             loss += l
             te = time.time()
-            print 'iter {}/{} took {}'.format(i+1, niter_pretrain, te-ts)
+            print 'iter {}/{} took {} sec'.format(i+1, niter_pretrain, te-ts)
             mm = np.mean(mterm)
             rr = np.mean(rterm)
-            print '\tmse_term: %.3f, reg_term: %.3f' % (mm, rr)
+            print '\tmse_term of l(X,y): %.3f, reg_term of l(X,y): %.3f' % (mm, rr)
         # print loss/minibatches
 
         if True:
+            # noise
             fx = f_x(sample_data['only_noise'])
-            print '\tavg noise power: %s, avg signal power: %s' % (
+            print '\tfor noise ex: avg noise power: %s, avg signal power: %s' % (
                 np.sum(fx[:,0:latents.n,:,:]**2)/latents.n,
                 np.sum(fx[:,latents.n+1:,:,:]**2)/(fx.shape[1]-latents.n)
             )
+
+            # clean
+            fx = f_x(sample_data['only_clean'])
+            print '\tfor clean ex: avg noise power: %s, avg signal power: %s' % (
+                np.sum(fx[:,0:latents.n,:,:]**2)/latents.n,
+                np.sum(fx[:,latents.n+1:,:,:]**2)/(fx.shape[1]-latents.n)
+            )
+
             X_hat = predict_fn(sample_data['sample'])
             x_hat = ISTFT(X_hat[:, 0, :, :], X_hat[:, 1, :, :])
             mse = mean_squared_error(sample_data['Scc'], x_hat)
-            print '\tmse: %.3E' % mse
+            print '\tmse time signal x_hat(t): %.3E' % mse
             wavwrite(x_hat, join(p, 'wav/xhat.wav'), fs=fs, enc='pcm16')
             # save model
             np.savez(join(p,'npz/pt_network.npz'), *lasagne.layers.get_all_param_values(network))
@@ -281,8 +293,7 @@ def main(*args, **kwargs):
             mse = mean_squared_error(sample_data['Scc'], x_hat)
             print '\tfinetune mse: %.5E' % mse
             wavwrite(x_hat, join(p, 'wav/fine_xhat.wav'), fs=fs, enc='pcm16')
-            wtf = ISTFT(sample_data['sample'][:,0,:,:], sample_data['sample'][:,1,:,:])
-            wavwrite(wtf, join(p, 'wav/wtf.wav'), fs=fs, enc='pcm16')
+
             with open(iter_fname, 'a') as f:
                 line = '{},{},{},{}\n'.format(i, loss/minibatches, mse, 'finetune')
                 f.write(line)
