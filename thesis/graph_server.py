@@ -69,7 +69,7 @@ def play_sound(reconstruction, snr):
 
 @app.route('/play/<fname>')
 def snd(fname):
-    if fname not in ['xhat', 'noisy', 'clean', 'Scc', 'fine_xhat', 'wtf']:
+    if fname not in ['xhat', 'noisy', 'clean', 'Scc', 'fine_xhat', 'wtf', 'signalplusnoise']:
         return make_response('Forbidden')
     d = os.path.join(get_latest_sim_dir(), 'wav')
     print d

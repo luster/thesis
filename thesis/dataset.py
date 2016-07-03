@@ -52,7 +52,7 @@ def build_dataset_one_signal_frame(x_signal, x_noise, framelength, k, num_miniba
     n_start = int(len(x_noise)/2)
 
     def _norm_signal(x):
-        x -= np.mean(x)
+        # x -= np.mean(x)
         return 0.5 * x / max(abs(x))
 
     def _avg_energy_scale(x, y):
@@ -78,9 +78,10 @@ def build_dataset_one_signal_frame(x_signal, x_noise, framelength, k, num_miniba
     # prevent clipping
     if k < 1:
         x_signal = x_signal + k * x_noise[n_start:n_start+len(x_signal)]
+	x_noise = k * x_noise[0:n_start]
     else:
         x_signal = 1/k * x_signal + x_noise[n_start:n_start+len(x_signal)]
-    x_noise = x_noise[0:n_start]
+	x_noise = x_noise[0:n_start]
 
     noise_real, noise_imag = stft(x_noise)
     signal_real, signal_imag = stft(x_signal)
@@ -126,4 +127,4 @@ def build_dataset_one_signal_frame(x_signal, x_noise, framelength, k, num_miniba
     }
 
 if __name__ == '__main__':
-    data, labels, noisegram, signalgram, x_noise, x_signal, noise_phasegram, signal_phasegram = build_dataset()
+    pass

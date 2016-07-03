@@ -199,6 +199,12 @@ def main(*args, **kwargs):
                 dataset['training_data'][batch_idx, :, :, :, :],
                 dataset['training_labels'][batch_idx, :, :, :, :],
             )
+            loss += l
+            te = time.time()
+            print 'iter {}/{} took {} sec'.format(i+1, niter_pretrain, te-ts)
+        # print loss/minibatches
+
+        if i % 20 == 0:
             mterm = mse_term(
                 dataset['training_data'][batch_idx, :, :, :, :],
             )
@@ -206,15 +212,9 @@ def main(*args, **kwargs):
                 dataset['training_data'][batch_idx, :, :, :, :],
                 dataset['training_labels'][batch_idx, :, :, :, :],
             )
-            loss += l
-            te = time.time()
-            print 'iter {}/{} took {} sec'.format(i+1, niter_pretrain, te-ts)
             mm = np.mean(mterm)
             rr = np.mean(rterm)
             print '\tmse_term of l(X,y): %.3f, reg_term of l(X,y): %.3f' % (mm, rr)
-        # print loss/minibatches
-
-        if True:
             # noise
             fx = f_x(sample_data['only_noise'])
             print '\tfor noise ex: avg noise power: %s, avg signal power: %s' % (
@@ -272,22 +272,22 @@ def main(*args, **kwargs):
             l = ft_train_fn(
                 dataset['training_data'][batch_idx, :, :, :, :]
             )
-            signal_loss = sig_term(dataset['training_data'][batch_idx, :, :, :, :])
-            noise_loss = noise_term(dataset['training_data'][batch_idx, :, :, :, :])
             loss += l
             te = time.time()
             print 'finetune iter {}/{}'.format(i+1, niter_finetune)
             print '\tloss: %.3f, took %.3f sec' % (l, te-ts)
+        # print loss/minibatches
+
+        if i % 20 == 0:
+            signal_loss = sig_term(dataset['training_data'][batch_idx, :, :, :, :])
+            noise_loss = noise_term(dataset['training_data'][batch_idx, :, :, :, :])
             mm = np.mean(signal_loss)
             rr = np.mean(noise_loss)
             print '\tmse_term: {}, reg_term: {}'.format(mm, rr)
-        # print loss/minibatches
-        print '\tdelta: mean {}, var {}'.format(
-            np.mean(finetune_layer.delta.eval()),
-            np.var(finetune_layer.delta.eval())
-        )
-
-        if True:
+            print '\tdelta: mean {}, var {}'.format(
+                np.mean(finetune_layer.delta.eval()),
+                np.var(finetune_layer.delta.eval())
+            )
             X_hat = finetune_predict_fn(sample_data['sample'])
             x_hat = ISTFT(X_hat[:, 0, :, :], X_hat[:, 1, :, :])
             mse = mean_squared_error(sample_data['Scc'], x_hat)
