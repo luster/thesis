@@ -28,4 +28,4 @@ n_noise_only_examples = int(
 import theano
 dtype = theano.config.floatX
 
-snr = 20  # db
+snr = 1000  # db
