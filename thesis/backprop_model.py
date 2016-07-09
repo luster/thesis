@@ -48,8 +48,9 @@ def build_network(X, shape, percent_background_latents):
     sh[0] = None
     inlayer = batch_norm(lasagne.layers.InputLayer(sh, X))
     print inlayer.output_shape
-    finetune_layer = FineTuneLayer(inlayer, delta=lasagne.init.Normal())
-    h0 = conv2d(finetune_layer, 16, (8, 1), (1, 1))
+    # finetune_layer = FineTuneLayer(inlayer, delta=lasagne.init.Normal())
+    # h0 = conv2d(finetune_layer, 16, (8, 1), (1, 1))
+    h0 = conv2d(inlayer, 16, (8, 1), (1, 1))
     h1 = conv2d(h0, 16, (8, 1), (2, 1))
     h2 = conv2d(h1, 32, (1, 8), (1, 1))
     h3 = conv2d(h2, 32, (1, 8), (1, 2))
@@ -66,7 +67,8 @@ def build_network(X, shape, percent_background_latents):
     d1 = deconv2d(d2, 16, (1, 8), (1, 1))
     d0 = deconv2d(d1, 16, (8, 1), (2, 1))
     network = deconv2d(d0, 2, (9, 1), (1, 1), nonlinearity=lasagne.nonlinearities.identity)
-    return network, latents, finetune_layer
+    # return network, latents, finetune_layer
+    return network, latents, None
 
 
 def make_c_matrix(latents, n_noise_only_examples, examples_per_minibatch):
@@ -245,63 +247,63 @@ def main(*args, **kwargs):
 
     # create back-prop net
     # finetune_network = build_finetune_network(X, shape, latents)
-    finetune_loss, sig_loss, noise_loss = finetune_loss_func(X, latents, lambduh_finetune)
-    ft_train_fn = finetune_train_fn(X, latents, finetune_loss)
+    # finetune_loss, sig_loss, noise_loss = finetune_loss_func(X, latents, lambduh_finetune)
+    # ft_train_fn = finetune_train_fn(X, latents, finetune_loss)
 
-    finetune_prediction = get_output(finetune_layer, deterministic=True, pretrain=False, one=True)
-    finetune_predict_fn = theano.function([X], finetune_prediction, allow_input_downcast=True)
+    # finetune_prediction = get_output(finetune_layer, deterministic=True, pretrain=False, one=True)
+    # finetune_predict_fn = theano.function([X], finetune_prediction, allow_input_downcast=True)
 
-    sig_term = theano.function([X], sig_loss)#, allow_input_downcast=True)
-    noise_term = theano.function([X], noise_loss)#, allow_input_downcast=True)
+    # sig_term = theano.function([X], sig_loss)#, allow_input_downcast=True)
+    # noise_term = theano.function([X], noise_loss)#, allow_input_downcast=True)
 
-    #################################################################
-    #                           FINETUNE                            #
-    #################################################################
-    for i in range(niter_finetune):
-        if i % 100 == 0 and i != 0:
-            post_slack('finetune: iter %d of %d, avg loss @ %.4E, mse @ %.4E' % (i+1, niter_finetune, loss/minibatches, mse))
-        dataset = build_dataset_one_signal_frame(
-            signal, noise,
-            framelength, k,
-            minibatches, examples_per_minibatch, freq_bins, time_bins,
-            n_noise_only_examples, signal_only=True)
+    # #################################################################
+    # #                           FINETUNE                            #
+    # #################################################################
+    # for i in range(niter_finetune):
+    #     if i % 100 == 0 and i != 0:
+    #         post_slack('finetune: iter %d of %d, avg loss @ %.4E, mse @ %.4E' % (i+1, niter_finetune, loss/minibatches, mse))
+    #     dataset = build_dataset_one_signal_frame(
+    #         signal, noise,
+    #         framelength, k,
+    #         minibatches, examples_per_minibatch, freq_bins, time_bins,
+    #         n_noise_only_examples, signal_only=True)
 
-        loss = 0
-        for batch_idx in range(minibatches):
-            ts = time.time()
-            l = ft_train_fn(
-                dataset['training_data'][batch_idx, :, :, :, :]
-            )
-            loss += l
-            te = time.time()
-            print 'finetune iter {}/{}'.format(i+1, niter_finetune)
-            print '\tloss: %.3f, took %.3f sec' % (l, te-ts)
-        # print loss/minibatches
+    #     loss = 0
+    #     for batch_idx in range(minibatches):
+    #         ts = time.time()
+    #         l = ft_train_fn(
+    #             dataset['training_data'][batch_idx, :, :, :, :]
+    #         )
+    #         loss += l
+    #         te = time.time()
+    #         print 'finetune iter {}/{}'.format(i+1, niter_finetune)
+    #         print '\tloss: %.3f, took %.3f sec' % (l, te-ts)
+    #     # print loss/minibatches
 
-        if i % 20 == 0:
-            signal_loss = sig_term(dataset['training_data'][batch_idx, :, :, :, :])
-            noise_loss = noise_term(dataset['training_data'][batch_idx, :, :, :, :])
-            mm = np.mean(signal_loss)
-            rr = np.mean(noise_loss)
-            print '\tmse_term: {}, reg_term: {}'.format(mm, rr)
-            print '\tdelta: mean {}, var {}'.format(
-                np.mean(finetune_layer.delta.eval()),
-                np.var(finetune_layer.delta.eval())
-            )
-            X_hat = finetune_predict_fn(sample_data['sample'])
-            x_hat = ISTFT(X_hat[:, 0, :, :], X_hat[:, 1, :, :])
-            mse = mean_squared_error(sample_data['Scc'], x_hat)
-            print '\tfinetune mse: %.5E' % mse
-            wavwrite(x_hat, join(p, 'wav/fine_xhat.wav'), fs=fs, enc='pcm16')
+    #     if i % 20 == 0:
+    #         signal_loss = sig_term(dataset['training_data'][batch_idx, :, :, :, :])
+    #         noise_loss = noise_term(dataset['training_data'][batch_idx, :, :, :, :])
+    #         mm = np.mean(signal_loss)
+    #         rr = np.mean(noise_loss)
+    #         print '\tmse_term: {}, reg_term: {}'.format(mm, rr)
+    #         print '\tdelta: mean {}, var {}'.format(
+    #             np.mean(finetune_layer.delta.eval()),
+    #             np.var(finetune_layer.delta.eval())
+    #         )
+    #         X_hat = finetune_predict_fn(sample_data['sample'])
+    #         x_hat = ISTFT(X_hat[:, 0, :, :], X_hat[:, 1, :, :])
+    #         mse = mean_squared_error(sample_data['Scc'], x_hat)
+    #         print '\tfinetune mse: %.5E' % mse
+    #         wavwrite(x_hat, join(p, 'wav/fine_xhat.wav'), fs=fs, enc='pcm16')
 
-            with open(iter_fname, 'a') as f:
-                line = '{},{},{},{}\n'.format(i, loss/minibatches, mse, 'finetune')
-                f.write(line)
-            # save model
-            np.savez(join(p,'npz/ft_network.npz'), *lasagne.layers.get_all_param_values(network))
-            np.savez(join(p,'npz/ft_latents.npz'), *lasagne.layers.get_all_param_values(latents))
-            np.savez(join(p,'npz/ft_finetune_layer.npz'), *lasagne.layers.get_all_param_values(finetune_layer))
-            # plots
+    #         with open(iter_fname, 'a') as f:
+    #             line = '{},{},{},{}\n'.format(i, loss/minibatches, mse, 'finetune')
+    #             f.write(line)
+    #         # save model
+    #         np.savez(join(p,'npz/ft_network.npz'), *lasagne.layers.get_all_param_values(network))
+    #         np.savez(join(p,'npz/ft_latents.npz'), *lasagne.layers.get_all_param_values(latents))
+    #         np.savez(join(p,'npz/ft_finetune_layer.npz'), *lasagne.layers.get_all_param_values(finetune_layer))
+    #         # plots
 
     ttime = time.time()
     post_slack('done with sim, total time: %.3f min' % ((ttime-stime)/60.))

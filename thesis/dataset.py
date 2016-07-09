@@ -68,6 +68,9 @@ def build_dataset_one_signal_frame(x_signal, x_noise, framelength, k, num_miniba
     # plt.plot(x_signal[0:100])
     # plt.savefig('x_sig_test.png')
 
+    # override to use just awgn for now as well
+    x_noise = np.random.normal(0, 1, len(x_noise))
+
     dtype = theano.config.floatX
 
     scale_factor = _avg_energy_scale(x_signal, x_noise)
