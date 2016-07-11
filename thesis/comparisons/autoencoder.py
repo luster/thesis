@@ -92,8 +92,10 @@ def gen_data(sample=False):
     noisy = clean + noise
 
     if sample:
-        noisy = noisy.reshape(batchsize, framelen)
-        clean = clean.reshape(batchsize, framelen)
+        noisy = [noisy[i:i+framelen] for i in xrange(0, len(noisy), int(0.25*framelen))][0:batchsize]
+        clean = [clean[i:i+framelen] for i in xrange(0, len(clean), int(0.25*framelen))][0:batchsize]
+        # noisy = noisy.reshape(batchsize, framelen)
+        # clean = clean.reshape(batchsize, framelen)
 
     return clean.astype(dtype), noisy.astype(dtype)
 
@@ -109,6 +111,8 @@ def stft(x, framelen, overlap=int(0.25*framelen)):
 
 
 def gen_freq_data(sample=False):
+    # for training, use FFTs of any frames
+    # for testing, use FFTs of frames with 25% overlap for proper reconstruction
     clean, noisy = gen_data(sample)
     import ipdb; ipdb.set_trace()
     # get FFTs
