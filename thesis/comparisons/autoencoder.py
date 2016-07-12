@@ -25,7 +25,7 @@ def mod_relu(x):
     return T.switch(x > eps, x, -eps/(x-1-eps))
 
 fftlen = 1024
-framelen = fftlen
+# framelen = fftlen
 # overlap = int(fraelen/2)
 
 def paris_net(params):
