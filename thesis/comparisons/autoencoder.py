@@ -41,6 +41,35 @@ def paris_net(params):
     return h1, x, s, loss.mean(), None, prediction
 
 
+def curro_net(params):
+    shape = (batchsize, framelen)
+    x = T.matrix('x')  # dirty input
+    label = T.vector('label')  # noise OR signal/noise
+    in_layer = batch_norm(lasagne.layers.InputLayer(shape, x))
+    h1 = batch_norm(lasagne.layers.DenseLayer(in_layer, 400, nonlinearity=lasagne.nonlinearities.leaky_rectify))
+    h2 = batch_norm(lasagne.layers.DenseLayer(h1, 400, nonlinearity=lasagne.nonlinearities.leaky_rectify))
+    h3 = batch_norm(lasagne.layers.DenseLayer(h2, 400, nonlinearity=lasagne.nonlinearities.leaky_rectify))
+    f = h3  # at this point, first half is signal, second half is noise
+    f_sig = lasagne.layers.SliceLayer(f, indices=slice(0,200), axis=-1)
+    sig_d3 = lasagne.layers.DenseLayer(f_sig, 300, nonlinearity=lasagne.nonlinearities.leaky_rectify)
+    d3_W = sig_d3.W
+    d3_b = sig_d3.b
+    sig_d3 = batch_norm(sig_d3)
+    sig_d2 = lasagne.layers.DenseLayer(sig_d3, 400, nonlinearity=lasagne.nonlinearities.leaky_rectify)
+    d2_W = sig_d2.W
+    d2_b = sig_d2.b
+    sig_d2 = batch_norm(sig_d2)
+    g_sig = batch_norm(lasagne.layers.DenseLayer(sig_d2, framelen, nonlinearity=lasagne.nonlinearities.identity))
+
+    f_noi = lasagne.layers.SliceLayer(f, indices=slice(200,400), axis=-1)
+    noi_d3 = lasagne.layers.DenseLayer(f_noi, 300, W=d3_W, b=d3_b, nonlinearity=lasagne.nonlinearities.leaky_rectify)
+    noi_d3 = batch_norm(noi_d3)
+    noi_d2 = lasagne.layers.DenseLayer(noi_d3, 400, W=d2_W, b=d2_b, nonlinearity=lasagne.nonlinearities.leaky_rectify)
+    noi_d2 = batch_norm(noi_d2)
+    g_noi = batch_norm(lasagne.layers.DenseLayer(noi_d2, framelen, nonlinearity=lasagne.nonlinearities.identity))
+
+
+
 def autoencoder(params):
     # network
     shape = (batchsize, framelen)
