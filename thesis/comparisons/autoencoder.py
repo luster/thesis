@@ -34,6 +34,7 @@ def paris_net(params):
     s = T.matrix('s')  # clean
     in_layer = batch_norm(lasagne.layers.InputLayer(shape, x))
     h1 = lasagne.layers.DenseLayer(in_layer, 2000, nonlinearity=mod_relu)
+    h1 = lasagne.layers.DenseLayer(h1, fftlen, nonlinearity=lasagne.nonlinearities.identity)
 
     # loss function
     prediction = lasagne.layers.get_output(h1)
@@ -68,6 +69,15 @@ def curro_net(params):
     noi_d2 = batch_norm(noi_d2)
     g_noi = batch_norm(lasagne.layers.DenseLayer(noi_d2, framelen, nonlinearity=lasagne.nonlinearities.identity))
 
+    # TODO: recombine network?
+
+    prediction_sig = lasagne.layers.get_output(g_sig)
+    prediction_noi = lasagne.layers.get_output(g_noi)
+    # label is 1 for signal, 0 for noise
+    prediction = label * prediction_sig + (1-label) * prediction_noi
+    loss = lasagne.objectives.squared_error(prediction, x)
+
+    return g_sig, x, label, loss.mean(), None, prediction
 
 
 def autoencoder(params):
@@ -121,10 +131,10 @@ def gen_data(sample=False):
     noisy = clean + noise
 
     if sample:
-        # noisy = np.array([noisy[i:i+framelen] for i in xrange(0, len(noisy), int(0.25*framelen))][0:batchsize])
-        # clean = np.array([clean[i:i+framelen] for i in xrange(0, len(clean), int(0.25*framelen))][0:batchsize])
-        noisy = noisy.reshape(batchsize, framelen)
-        clean = clean.reshape(batchsize, framelen)
+        noisy = np.array([noisy[i:i+framelen] for i in xrange(0, len(noisy), int(0.25*framelen))][0:batchsize])
+        clean = np.array([clean[i:i+framelen] for i in xrange(0, len(clean), int(0.25*framelen))][0:batchsize])
+        #noisy = noisy.reshape(batchsize, framelen)
+        #clean = clean.reshape(batchsize, framelen)
 
     # if sample:
     #     import ipdb; ipdb.set_trace()
@@ -141,25 +151,31 @@ def stft(x, framelen, overlap=int(0.25*framelen)):
     return np.abs(X), np.angle(X)
 
 
+def fft(x, fftlen):
+    w = scipy.hamming(fftlen)
+    # X = scipy.fft(x, 2**(x.shape[1]-1).bit_length())
+    X = scipy.fft(x, fftlen)
+    return np.abs(X).astype(dtype), np.angle(X).astype(dtype)
+
+
 def gen_freq_data(sample=False):
     # for training, use FFTs of any frames
     # for testing, use FFTs of frames with 25% overlap for proper reconstruction
-    clean, noisy = gen_data(sample)
-    import ipdb; ipdb.set_trace()
+    clean, noisy, n = gen_data(sample)
     # get FFTs
-    clean_stft = stft(clean, framelen)  # mag, phase
-    noisy_stft = stft(noisy, framelen)  # mag, phase
-    return clean_stft, noisy_stft  # (mag, phase), (mag, phase)
+    clean_stft = fft(clean, fftlen)  # mag, phase
+    noisy_stft = fft(noisy, fftlen)  # mag, phase
+    return clean_stft, noisy_stft, n  # (mag, phase), (mag, phase)
 
 def istft(X, framelen, overlap=int(0.25*framelen)):
-    time_bins = X.shape[1]  # or 0? /shrug
-    x = scipy.zeros(framelen/2*(time_bins + 1))
+    time_bins = X.shape[0]  # or 0? /shrug
+    x = scipy.zeros(int(framelen/2*(time_bins + 1)))
     w = scipy.hamming(framelen)
     for n,i in enumerate(range(0, len(x)-framelen, overlap)):
         x[i:i+framelen] += scipy.real(scipy.ifft(X[:, n], framelen))
     return x
 
-def ISTFT(mag, phase):
+def ISTFT(mag, phase, framelen):
     stft = mag * np.exp(1j*phase)
     return istft(stft, framelen)
 
@@ -168,22 +184,21 @@ def paris_main(params):
     train_fn = train(a,x,s,loss)
     lmse = []
     predict_fn = theano.function([x], x_hat)
-    for i in xrange(1000):
-        clean, noisy = gen_freq_data()
-        import ipdb; ipdb.set_trace()
+    for i in xrange(params.get('niter')):
+        clean, noisy, n = gen_freq_data()
         loss = train_fn(noisy[0], clean[0])
         lmse.append(loss)
         print i, loss
-    clean, noisy = gen_freq_data(sample=True)
+    clean, noisy, n = gen_freq_data(sample=True)
     cleaned_up = predict_fn(noisy[0])
-    cleaned_up_time = ISTFT(cleaned_up, noisy[1])
-    clean_time = ISTFT(clean[0], clean[1])
+    cleaned_up_time = ISTFT(cleaned_up, noisy[1], fftlen)
+    clean_time = ISTFT(clean[0], clean[1], fftlen)
     mse = mean_squared_error(cleaned_up_time, clean_time)
     print 'mse ', mse
     wavwrite(cleaned_up_time, 'paris/x.wav', fs=srate, enc='pcm16')
     plt.figure()
     plt.subplot(211)
-    plt.plot(cleaned_up_time)
+    # plt.plot(cleaned_up_time)
     plt.plot(clean_time)
     plt.subplot(212)
     plt.semilogy(lmse)
@@ -193,46 +208,46 @@ def paris_main(params):
 if __name__ == "__main__":
     import sys
     niter = int(sys.argv[1])
-    # paris_main({})
-    a, x, s, loss, reg, x_hat = autoencoder({})
-    train_fn = train(a,x,s,loss)
-    loss_mse = theano.function([x, s], loss)
-    loss_reg = theano.function([], reg)
-    lmse = []
-    lreg = []
-    predict_fn = theano.function([x], x_hat)
-    # clean, noisy = gen_data()
-    # wavwrite(clean[1,:], 'fig/s.wav', fs=srate, enc='pcm16')
-    for i in xrange(niter):
-        clean, noisy, _ = gen_data()
-        loss = train_fn(noisy, clean)
-        lmse.append(loss_mse(noisy, clean))
-        lreg.append(loss_reg())
-        print i, loss
-    clean, noisy, n = gen_data(sample=True)
-    cleaned_up = predict_fn(noisy)
-    cleaned_up = cleaned_up.reshape(batchsize * framelen)
-    # mse calculation
-    mse = mean_squared_error(cleaned_up, clean.reshape(batchsize * framelen))
-    print 'mse ', mse
-    wavwrite(clean.reshape(batchsize * framelen), 'fig/s.wav', fs=srate, enc='pcm16')
-    wavwrite(noisy.reshape(batchsize * framelen), 'fig/xn.wav', fs=srate, enc='pcm16')
-    wavwrite(cleaned_up, 'fig/x.wav', fs=srate, enc='pcm16')
-    plt.figure()
-    plt.subplot(311)
-    #import ipdb; ipdb.set_trace()
-    # plt.plot(n, clean.reshape(batchsize * framelen))
-    # plt.plot(n, noisy.reshape(batchsize * framelen))
-    # plt.plot(n, cleaned_up)
-    plt.plot(n[0:framelen*2],clean[0:2,:].reshape(-1))
-    plt.plot(n[0:framelen*2],noisy[0:2,:].reshape(-1))
-    plt.plot(n[0:framelen*2],cleaned_up[0:framelen*2])
-    # plt.plot(n[0:framelen],cleaned_up[0:framelen])
-    plt.subplot(312)
-    plt.plot(lmse)
-    plt.semilogy(lmse)
-    plt.subplot(313)
-    plt.plot(lreg)
-    plt.semilogy(lreg)
-    plt.savefig('fig/x.svg', format='svg')
+    paris_main({'niter': niter})
+    # a, x, s, loss, reg, x_hat = autoencoder({})
+    # train_fn = train(a,x,s,loss)
+    # loss_mse = theano.function([x, s], loss)
+    # loss_reg = theano.function([], reg)
+    # lmse = []
+    # lreg = []
+    # predict_fn = theano.function([x], x_hat)
+    # # clean, noisy = gen_data()
+    # # wavwrite(clean[1,:], 'fig/s.wav', fs=srate, enc='pcm16')
+    # for i in xrange(niter):
+    #     clean, noisy, _ = gen_data()
+    #     loss = train_fn(noisy, clean)
+    #     lmse.append(loss_mse(noisy, clean))
+    #     lreg.append(loss_reg())
+    #     print i, loss
+    # clean, noisy, n = gen_data(sample=True)
+    # cleaned_up = predict_fn(noisy)
+    # cleaned_up = cleaned_up.reshape(batchsize * framelen)
+    # # mse calculation
+    # mse = mean_squared_error(cleaned_up, clean.reshape(batchsize * framelen))
+    # print 'mse ', mse
+    # wavwrite(clean.reshape(batchsize * framelen), 'fig/s.wav', fs=srate, enc='pcm16')
+    # wavwrite(noisy.reshape(batchsize * framelen), 'fig/xn.wav', fs=srate, enc='pcm16')
+    # wavwrite(cleaned_up, 'fig/x.wav', fs=srate, enc='pcm16')
+    # plt.figure()
+    # plt.subplot(311)
+    # #import ipdb; ipdb.set_trace()
+    # # plt.plot(n, clean.reshape(batchsize * framelen))
+    # # plt.plot(n, noisy.reshape(batchsize * framelen))
+    # # plt.plot(n, cleaned_up)
+    # plt.plot(n[0:framelen*2],clean[0:2,:].reshape(-1))
+    # plt.plot(n[0:framelen*2],noisy[0:2,:].reshape(-1))
+    # plt.plot(n[0:framelen*2],cleaned_up[0:framelen*2])
+    # # plt.plot(n[0:framelen],cleaned_up[0:framelen])
+    # plt.subplot(312)
+    # plt.plot(lmse)
+    # plt.semilogy(lmse)
+    # plt.subplot(313)
+    # plt.plot(lreg)
+    # plt.semilogy(lreg)
+    # plt.savefig('fig/x.svg', format='svg')
 
