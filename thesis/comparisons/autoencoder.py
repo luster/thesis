@@ -17,12 +17,16 @@ dtype = theano.config.floatX
 batchsize = 64
 framelen = 441
 srate = 16000
+pct = 0.25  # overlap
 
 batch_norm = lasagne.layers.batch_norm
 
 def mod_relu(x):
     eps = 1e-5
     return T.switch(x > eps, x, -eps/(x-1-eps))
+
+def normalize(x):
+    return x / max(abs(x))
 
 fftlen = 1024
 framelen = fftlen
@@ -128,24 +132,22 @@ def gen_data(sample=False):
     # clean = np.hamming(framelen) * clean
 
     # corrupt with gaussian noise
-    noise = np.random.normal(0, 1e-10, clean.shape)
+    noise = np.random.normal(0, 1e-5, clean.shape)
     noisy = clean + noise
 
     if sample:
-        noisy = np.array([noisy[i:i+framelen] for i in xrange(0, len(noisy), int(0.25*framelen))][0:batchsize])
-        clean = np.array([clean[i:i+framelen] for i in xrange(0, len(clean), int(0.25*framelen))][0:batchsize])
+        noisy = np.array([noisy[i:i+framelen] for i in xrange(0, len(noisy), int(pct*framelen))][0:batchsize])
+        clean = np.array([clean[i:i+framelen] for i in xrange(0, len(clean), int(pct*framelen))][0:batchsize])
         #noisy = noisy.reshape(batchsize, framelen)
         #clean = clean.reshape(batchsize, framelen)
 
-    # if sample:
-    #     import ipdb; ipdb.set_trace()
     return clean.astype(dtype), noisy.astype(dtype), n
 
 
 from numpy import complex64
 import scipy
-def stft(x, framelen, overlap=int(0.25*framelen)):
-    w = scipy.hamming(framelen)
+def stft(x, framelen, overlap=int(pct*framelen)):
+    w = scipy.hanning(framelen)
     X = np.array([scipy.fft(w*x[i:i+framelen], freq_bins)
                      for i in range(0, len(x)-framelen, overlap)], dtype=complex64)
     X = np.transpose(X)
@@ -153,10 +155,8 @@ def stft(x, framelen, overlap=int(0.25*framelen)):
 
 
 def fft(x, fftlen):
-    w = scipy.hamming(fftlen)
-    # X = scipy.fft(x, 2**(x.shape[1]-1).bit_length())
-    X = scipy.fft(x, fftlen, axis=-1)
-    # X = np.transpose(X)
+    w = np.tile((scipy.hanning(fftlen)), (batchsize, 1))
+    X = scipy.fft(w*x, fftlen, axis=-1)
     return np.abs(X).astype(dtype), np.angle(X).astype(dtype)
 
 
@@ -170,7 +170,8 @@ def gen_freq_data(sample=False):
     return clean_stft, noisy_stft, n  # (mag, phase), (mag, phase)
 
 def istft(X, framelen):
-    pct = 0.25
+    frames_avg = int(1/pct)  # 4 in this case
+    # no avg first, 
     overlap = int(pct * framelen)
     #x = scipy.zeros(int(framelen/2*(time_bins + 1)))
     x = scipy.zeros(int(X.shape[1]*(X.shape[0]*pct+1-pct)))
@@ -195,16 +196,16 @@ def paris_main(params):
         print i, loss
     clean, noisy, n = gen_freq_data(sample=True)
     cleaned_up = predict_fn(noisy[0])
-    cleaned_up_time = ISTFT(cleaned_up, noisy[1], fftlen)
-    clean_time = ISTFT(clean[0], clean[1], fftlen)
+    cleaned_up_time = normalize(ISTFT(cleaned_up, noisy[1], fftlen))
+    clean_time = normalize(ISTFT(clean[0], clean[1], fftlen))
     mse = mean_squared_error(cleaned_up_time, clean_time)
     print 'mse ', mse
-    # wavwrite(cleaned_up_time, 'paris/x.wav', fs=srate, enc='pcm16')
-    wavwrite(clean_time, 'paris/x.wav', fs=srate, enc='pcm16')
+    wavwrite(cleaned_up_time/max(abs(cleaned_up_time)), 'paris/xhat.wav', fs=srate, enc='pcm16')
+    wavwrite(clean_time/max(abs(clean_time)), 'paris/x.wav', fs=srate, enc='pcm16')
     plt.figure()
     plt.subplot(411)
-    plt.plot(cleaned_up_time[0:fftlen])
-    plt.plot(clean_time[0:fftlen])
+    plt.plot(cleaned_up_time[0:fftlen*2])
+    plt.plot(clean_time[0:fftlen*2])
     plt.subplot(412)
     plt.semilogy(lmse)
     plt.subplot(413)
