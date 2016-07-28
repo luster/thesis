@@ -36,33 +36,33 @@ class SimWrapper(object):
     """
 
     def __init__(self):
-        self._input = DEFAULT_INPUT
-        self._network = DEFAULT_NETWORK
+        self._input = None
+        self._network = None
 
         self.niter = DEFAULT_NUMBER_ITERATIONS
         self.metrics = []
+        self._train_fn = None
 
     def network(self, net):
-        self._network = net
-        return self
+        raise NotImplementedError()
 
-    def _gen_batch(self):
-        # return a minibatch
-        pass
+    def get_minibatch(self):
+        raise NotImplementedError()
 
-    def _train_fn(self, batch):
-        # return loss
-        pass
+    def train_fn(self):
+        raise NotImplementedError()
 
     def _run_iter(self, i):
         # generate batch
         batch = self._gen_batch()
         loss = self._train_fn(batch)
         print i+1, loss
+        return batch, loss
 
     def _run(self):
         for i in xrange(self.niter):
-            self._run_iter(i)
+            batch, loss = self._run_iter(i)
+            self._do_after(batch, loss)
         return None
 
     def run(self):
