@@ -33,7 +33,6 @@ class SimWrapper(object):
 
     Where to store?
     What kind of metadata set on the simulation?
-    
     """
 
     def __init__(self):

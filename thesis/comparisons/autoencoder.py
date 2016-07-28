@@ -16,7 +16,7 @@ from sklearn.metrics import mean_squared_error
 dtype = theano.config.floatX
 batchsize = 64
 framelen = 441
-srate = 44100
+srate = 16000
 
 batch_norm = lasagne.layers.batch_norm
 
@@ -25,8 +25,8 @@ def mod_relu(x):
     return T.switch(x > eps, x, -eps/(x-1-eps))
 
 fftlen = 1024
-# framelen = fftlen
-# overlap = int(fraelen/2)
+framelen = fftlen
+overlap = int(framelen/2)
 
 def paris_net(params):
     shape = (batchsize, fftlen)
@@ -119,7 +119,8 @@ def gen_data(sample=False):
         phase = np.random.uniform(0.0, 2*np.pi)
         amp = np.random.uniform(0.35, 0.6)
     else:
-        n = np.tile(np.linspace(0, 442, framelen), (batchsize,1))
+        # n = np.tile(np.linspace(0, 442, framelen), (batchsize,1))
+        n = np.tile(np.linspace(0, framelen-1, framelen), (batchsize,1))
         phase = np.tile(np.random.uniform(0.0, 2*np.pi, batchsize), (framelen, 1)).transpose()
         amp = np.tile(np.random.uniform(0.35, 0.65, batchsize), (framelen,1)).transpose()
     clean = amp * np.sin(2 * np.pi * f / srate * n + phase)
@@ -154,7 +155,8 @@ def stft(x, framelen, overlap=int(0.25*framelen)):
 def fft(x, fftlen):
     w = scipy.hamming(fftlen)
     # X = scipy.fft(x, 2**(x.shape[1]-1).bit_length())
-    X = scipy.fft(x, fftlen)
+    X = scipy.fft(x, fftlen, axis=-1)
+    # X = np.transpose(X)
     return np.abs(X).astype(dtype), np.angle(X).astype(dtype)
 
 
@@ -167,16 +169,18 @@ def gen_freq_data(sample=False):
     noisy_stft = fft(noisy, fftlen)  # mag, phase
     return clean_stft, noisy_stft, n  # (mag, phase), (mag, phase)
 
-def istft(X, framelen, overlap=int(0.25*framelen)):
-    time_bins = X.shape[0]  # or 0? /shrug
-    x = scipy.zeros(int(framelen/2*(time_bins + 1)))
-    w = scipy.hamming(framelen)
+def istft(X, framelen):
+    pct = 0.25
+    overlap = int(pct * framelen)
+    #x = scipy.zeros(int(framelen/2*(time_bins + 1)))
+    x = scipy.zeros(int(X.shape[1]*(X.shape[0]*pct+1-pct)))
     for n,i in enumerate(range(0, len(x)-framelen, overlap)):
-        x[i:i+framelen] += scipy.real(scipy.ifft(X[:, n], framelen))
+        x[i:i+framelen] += scipy.real(scipy.ifft(X[n, :]))
     return x
 
 def ISTFT(mag, phase, framelen):
     stft = mag * np.exp(1j*phase)
+    # return np.fft.ifft(stft, framelen)
     return istft(stft, framelen)
 
 def paris_main(params):
@@ -195,13 +199,18 @@ def paris_main(params):
     clean_time = ISTFT(clean[0], clean[1], fftlen)
     mse = mean_squared_error(cleaned_up_time, clean_time)
     print 'mse ', mse
-    wavwrite(cleaned_up_time, 'paris/x.wav', fs=srate, enc='pcm16')
+    # wavwrite(cleaned_up_time, 'paris/x.wav', fs=srate, enc='pcm16')
+    wavwrite(clean_time, 'paris/x.wav', fs=srate, enc='pcm16')
     plt.figure()
-    plt.subplot(211)
-    # plt.plot(cleaned_up_time)
-    plt.plot(clean_time)
-    plt.subplot(212)
+    plt.subplot(411)
+    plt.plot(cleaned_up_time[0:fftlen])
+    plt.plot(clean_time[0:fftlen])
+    plt.subplot(412)
     plt.semilogy(lmse)
+    plt.subplot(413)
+    plt.plot(clean[0][0,:])
+    plt.subplot(414)
+    plt.plot(np.unwrap(clean[1][0,:]))
     plt.savefig('paris/x.svg', format='svg')
 
 
