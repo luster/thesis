@@ -30,7 +30,7 @@ def simple_autoencoder(params=default_params):
     s = T.matrix('s')  # clean
     in_layer = batch_norm(layers.InputLayer(shape, x))
     bottlesize = int(shape[1]/2)
-    h1 = batch_norm(layers.DenseLayer(in_layer, bottlesize, nonlinearity=nonlin.leaky_rectify))
+    h1 = batch_norm(layers.DenseLayer(in_layer, bottlesize, nonlinearity=nonlin.rectify))
     x_hat = layers.DenseLayer(h1, shape[1], nonlinearity=nonlin.identity)
 
     return x_hat, x, s
@@ -95,6 +95,7 @@ def get_minibatch(params=default_params, sample=False):
     return clean.astype(dtype), noisy.astype(dtype), n
 
 def run(x_hat, x, s, loss, train_fn, params=default_params):
+    predict_fn = theano.function([x], get_output(x_hat))
     niter = params.get('niter')
     loss_plot = []
     for i in xrange(niter):
@@ -102,7 +103,15 @@ def run(x_hat, x, s, loss, train_fn, params=default_params):
         l = train_fn(noisy, clean)
         loss_plot.append(l)
         print i, 'loss = ', l
-    import ipdb; ipdb.set_trace()
+    # test/plot
+    # clean, noisy, n = get_minibatch(params, sample=True)
+    plt.figure()
+    plt.plot(loss_plot)
+    plt.xlabel('Number of iterations')
+    plt.ylabel('Loss')
+    plt.title('Loss vs. Number of Iterations')
+    plt.savefig('loss.pdf', format='pdf')
+
 
 def sim():
     # get network
