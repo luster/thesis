@@ -314,13 +314,57 @@ def curro_main(params):
     plt.savefig('curro/x.svg', format='svg')
 
 
+def sim_():
+    # a, x, s, loss, reg, x_hat = autoencoder({})
+    a, x, s, loss, _, x_hat = curro_net({})
+    train_fn = train(a,x,s,loss)
+    loss_mse = theano.function([x, s], loss)
+    # loss_reg = theano.function([], reg)
+    lmse = []
+    # lreg = []
+    predict_fn = theano.function([x,s], x_hat)
+    # clean, noisy = gen_data()
+    # wavwrite(clean[1,:], 'fig/s.wav', fs=srate, enc='pcm16')
+    for i in xrange(niter):
+        clean, noisy, _, labels = gen_freq_data(sample=False, gen_data_fn=gen_batch_half_noisy_half_noise)
+        loss = train_fn(noisy, labels)
+        lmse.append(loss)
+        # lmse.append(loss_mse(noisy, clean))
+        # lreg.append(loss_reg())
+        print i, loss
+    clean, noisy, n, labels = gen_batch_half_noisy_half_noise(sample=True)
+    cleaned_up = predict_fn(noisy, labels)
+    cleaned_up = cleaned_up.reshape(batchsize * framelen)
+    # mse calculation
+    mse = mean_squared_error(cleaned_up, clean.reshape(batchsize * framelen))
+    print 'mse ', mse
+    wavwrite(clean.reshape(batchsize * framelen), 'fig/s.wav', fs=srate, enc='pcm16')
+    wavwrite(noisy.reshape(batchsize * framelen), 'fig/xn.wav', fs=srate, enc='pcm16')
+    wavwrite(cleaned_up, 'fig/x.wav', fs=srate, enc='pcm16')
+    plt.figure()
+    plt.subplot(211)
+    # plt.plot(n, clean.reshape(batchsize * framelen))
+    # plt.plot(n, noisy.reshape(batchsize * framelen))
+    # plt.plot(n, cleaned_up)
+    plt.plot(n[0:framelen*2],clean[0:2,:].reshape(-1))
+    plt.plot(n[0:framelen*2],noisy[0:2,:].reshape(-1))
+    plt.plot(n[0:framelen*2],cleaned_up[0:framelen*2])
+    # plt.plot(n[0:framelen],cleaned_up[0:framelen])
+    plt.subplot(212)
+    plt.plot(lmse)
+    plt.semilogy(lmse)
+    # plt.subplot(313)
+    # plt.plot(lreg)
+    # plt.semilogy(lreg)
+    plt.savefig('fig/x.svg', format='svg')
+
+
 if __name__ == "__main__":
     import sys
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('net', type=str, help='super, paris, dan, or curro', default='super')
     parser.add_argument('-n', '--niter', type=int, help='number of iterations', default=100)
-    # parser.add_argument('-')
     args = parser.parse_args()
     niter = args.niter
     mapping = {
@@ -330,48 +374,3 @@ if __name__ == "__main__":
         'curro': curro_main,
     }
     mapping[args.net]({'niter':niter})
-    #paris_main({'niter': niter})
-    # curro_main({'niter': niter})
-#     # a, x, s, loss, reg, x_hat = autoencoder({})
-#     a, x, s, loss, _, x_hat = curro_net({})
-#     train_fn = train(a,x,s,loss)
-#     loss_mse = theano.function([x, s], loss)
-#     # loss_reg = theano.function([], reg)
-#     lmse = []
-#     # lreg = []
-#     predict_fn = theano.function([x,s], x_hat)
-#     # clean, noisy = gen_data()
-#     # wavwrite(clean[1,:], 'fig/s.wav', fs=srate, enc='pcm16')
-#     for i in xrange(niter):
-#         clean, noisy, _, labels = gen_freq_data(sample=False, gen_data_fn=gen_batch_half_noisy_half_noise)
-#         loss = train_fn(noisy, labels)
-#         lmse.append(loss)
-#         # lmse.append(loss_mse(noisy, clean))
-#         # lreg.append(loss_reg())
-#         print i, loss
-#     clean, noisy, n, labels = gen_batch_half_noisy_half_noise(sample=True)
-#     cleaned_up = predict_fn(noisy, labels)
-#     cleaned_up = cleaned_up.reshape(batchsize * framelen)
-#     # mse calculation
-#     mse = mean_squared_error(cleaned_up, clean.reshape(batchsize * framelen))
-#     print 'mse ', mse
-#     wavwrite(clean.reshape(batchsize * framelen), 'fig/s.wav', fs=srate, enc='pcm16')
-#     wavwrite(noisy.reshape(batchsize * framelen), 'fig/xn.wav', fs=srate, enc='pcm16')
-#     wavwrite(cleaned_up, 'fig/x.wav', fs=srate, enc='pcm16')
-#     plt.figure()
-#     plt.subplot(211)
-#     # plt.plot(n, clean.reshape(batchsize * framelen))
-#     # plt.plot(n, noisy.reshape(batchsize * framelen))
-#     # plt.plot(n, cleaned_up)
-#     plt.plot(n[0:framelen*2],clean[0:2,:].reshape(-1))
-#     plt.plot(n[0:framelen*2],noisy[0:2,:].reshape(-1))
-#     plt.plot(n[0:framelen*2],cleaned_up[0:framelen*2])
-#     # plt.plot(n[0:framelen],cleaned_up[0:framelen])
-#     plt.subplot(212)
-#     plt.plot(lmse)
-#     plt.semilogy(lmse)
-#     # plt.subplot(313)
-#     # plt.plot(lreg)
-#     # plt.semilogy(lreg)
-#     plt.savefig('fig/x.svg', format='svg')
-#
