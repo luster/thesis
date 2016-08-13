@@ -225,7 +225,7 @@ def gen_freq_data(sample=False, gen_data_fn=gen_data):
 
 def istft(X, framelen):
     frames_avg = int(1/pct)  # 4 in this case
-    # no avg first, 
+    # no avg first,
     overlap = int(pct * framelen)
     #x = scipy.zeros(int(framelen/2*(time_bins + 1)))
     x = scipy.zeros(int(X.shape[1]*(X.shape[0]*pct+1-pct)))
@@ -316,9 +316,22 @@ def curro_main(params):
 
 if __name__ == "__main__":
     import sys
-    niter = int(sys.argv[1])
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('net', type=str, help='super, paris, dan, or curro', default='super')
+    parser.add_argument('-n', '--niter', type=int, help='number of iterations', default=100)
+    # parser.add_argument('-')
+    args = parser.parse_args()
+    niter = args.niter
+    mapping = {
+        'super': autoencoder,
+        'paris': paris_main,
+        'dan': None,
+        'curro': curro_ma,
+    }
+    mapping[args.net]({'niter':niter})
     #paris_main({'niter': niter})
-    curro_main({'niter': niter})
+    # curro_main({'niter': niter})
 #     # a, x, s, loss, reg, x_hat = autoencoder({})
 #     a, x, s, loss, _, x_hat = curro_net({})
 #     train_fn = train(a,x,s,loss)
@@ -361,4 +374,4 @@ if __name__ == "__main__":
 #     # plt.plot(lreg)
 #     # plt.semilogy(lreg)
 #     plt.savefig('fig/x.svg', format='svg')
-# 
+#
