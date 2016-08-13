@@ -56,6 +56,7 @@ def get_minibatch(params=default_params, sample=False):
     batchsize = default_params.get('batchsize')
     framelen = default_params.get('framelen')
     pct = default_params.get('pct')
+    snr = default_params.get('snr')  # dB
 
     def _sin_f(a, f, srate, n, phase):
         return a * np.sin(2*np.pi*f/srate*n+phase)
@@ -77,8 +78,9 @@ def get_minibatch(params=default_params, sample=False):
     clean = _sin_f(amp,441,srate,n,phase) + _sin_f(amp, 635.25,srate,n,phase) + _sin_f(amp,528,srate,n,phase) + _sin_f(amp,880,srate,n,phase)
 
     # corrupt with gaussian noise
-
-    noise = np.random.normal(0, 1e-1, clean.shape)
+    import ipdb; ipdb.set_trace()
+    # noise_var = _noise_var(clean[], snr)
+    noise = np.random.normal(0, noise_var, clean.shape)
     noisy = clean + noise
 
     if sample:
