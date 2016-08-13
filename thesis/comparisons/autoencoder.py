@@ -327,7 +327,7 @@ if __name__ == "__main__":
         'super': autoencoder,
         'paris': paris_main,
         'dan': None,
-        'curro': curro_ma,
+        'curro': curro_main,
     }
     mapping[args.net]({'niter':niter})
     #paris_main({'niter': niter})
