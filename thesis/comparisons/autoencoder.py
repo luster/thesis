@@ -28,16 +28,13 @@ def mod_relu(x):
     eps = 1e-5
     return T.switch(x > eps, x, -eps/(x-1-eps))
 
-
 def normalize(x):
     return x / max(abs(x))
-
 
 def fhfft(X):
     size_x = X.shape
     return np.concatenate(
     )
-
 
 
 def paris_net(params):
@@ -52,16 +49,6 @@ def paris_net(params):
     prediction = lasagne.layers.get_output(h1)
     loss = lasagne.objectives.squared_error(prediction, s)
     return h1, x, s, loss.mean(), None, prediction
-
-
-class RecombineLayer(lasagne.layers.ElemwiseMergeLayer):
-    def __init__(self, incoming, **kwargs):
-        super(RecombineLayer, self).__init__(incoming)
-
-    def get_output_for(self, input_data, reconstruct=False, **kwargs):
-        if reconstruct:
-            return self.mask * input_data
-        return input_data
 
 
 def curro_net(params):

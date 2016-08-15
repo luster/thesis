@@ -4,21 +4,27 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
+from scikits.audiolab import wavwrite
+import matplotlib.pyplot as plt
+from sklearn.metrics import mean_squared_error
 
+from autoencoder import mod_relu
+
+get_output = lasagne.layers.get_output
 nonlin = lasagne.nonlinearities
 layers = lasagne.layers
 batch_norm = lasagne.layers.batch_norm
 dtype = theano.config.floatX
 
 default_params = {
-    'batchsize': 16,
+    'batchsize': 96,
     'framelen': 1024,
     'srate': 16000,
     'window': np.hanning,
     'pct': 0.5,
     'reg': False,
-    'snr': 12,  # dB
-    'niter': 100,
+    'snr': 100,  # dB
+    'niter': 500,
 }
 default_params['fftlen'] = default_params['framelen']
 
@@ -28,9 +34,10 @@ def simple_autoencoder(params=default_params):
     shape = (params.get('batchsize'), params.get('framelen'),)
     x = T.matrix('x')  # dirty
     s = T.matrix('s')  # clean
-    in_layer = batch_norm(layers.InputLayer(shape, x))
-    bottlesize = int(shape[1]/2)
-    h1 = batch_norm(layers.DenseLayer(in_layer, bottlesize, nonlinearity=nonlin.rectify))
+    in_layer = layers.InputLayer(shape, x)
+    bottlesize = int(shape[1]*2)
+    print 'bottle: ', bottlesize
+    h1 = layers.DenseLayer(in_layer, bottlesize, nonlinearity=nonlin.rectify)
     x_hat = layers.DenseLayer(h1, shape[1], nonlinearity=nonlin.identity)
 
     return x_hat, x, s
@@ -46,8 +53,7 @@ def loss(x_hat, x, s, reg=False):
 
 def train(x_hat, x, s, loss):
     params = lasagne.layers.get_all_params(x_hat, trainable=True)
-    import ipdb; ipdb.set_trace()
-    updates = lasagne.updates.adamax(loss, params)
+    updates = lasagne.updates.adadelta(loss, params)
     train_fn = theano.function([x,s], loss, updates=updates)
     return train_fn
 
@@ -69,7 +75,7 @@ def get_minibatch(params=default_params, sample=False):
         avg_energy = np.sum(clean*clean)/clean.size
         snr_lin = 10**(snr_db/10)
         noise_var = avg_energy / snr_lin
-        print 'noise variance for minibatch: ', noise_var
+        # print 'noise variance for minibatch: ', noise_var
         return noise_var
 
     if sample:
@@ -80,7 +86,6 @@ def get_minibatch(params=default_params, sample=False):
         n = np.tile(np.linspace(0, framelen-1, framelen), (batchsize,1))
         phase = np.tile(np.random.uniform(0.0, 2*np.pi, batchsize), (framelen, 1)).transpose()
         amp = np.tile(np.random.uniform(0.35, 0.65, batchsize), (framelen,1)).transpose()
-    # clean = amp * np.sin(2 * np.pi * f / srate * n + phase)
     clean = _sin_f(amp,441,srate,n,phase) + _sin_f(amp, 635.25,srate,n,phase) + _sin_f(amp,528,srate,n,phase) + _sin_f(amp,880,srate,n,phase)
 
     # corrupt with gaussian noise
@@ -89,27 +94,40 @@ def get_minibatch(params=default_params, sample=False):
     noisy = clean + noise
 
     if sample:
-        noisy = np.array([noisy[i:i+framelen] for i in xrange(0, len(noisy), int(pct*framelen))][0:batchsize])
-        clean = np.array([clean[i:i+framelen] for i in xrange(0, len(clean), int(pct*framelen))][0:batchsize])
+        w = np.hanning(framelen)
+        noisy = np.array([w*noisy[i:i+framelen] for i in xrange(0, len(noisy), int(pct*framelen))][0:batchsize])
+        clean = np.array([w*clean[i:i+framelen] for i in xrange(0, len(clean), int(pct*framelen))][0:batchsize])
+    else:
+        w = np.tile(np.hanning(framelen), (batchsize,1))
+        clean = clean * w
+        noisy = noisy * w
 
     return clean.astype(dtype), noisy.astype(dtype), n
 
 def run(x_hat, x, s, loss, train_fn, params=default_params):
     predict_fn = theano.function([x], get_output(x_hat))
     niter = params.get('niter')
-    loss_plot = []
-    for i in xrange(niter):
-        clean, noisy, n = get_minibatch(params, sample=False)
-        l = train_fn(noisy, clean)
-        loss_plot.append(l)
-        print i, 'loss = ', l
+    snrs = [-6,0,6,12]
+
+    loss_plots = []
+    for snr in snrs:
+        params['snr'] = snr
+        loss_plot = []
+        for i in xrange(niter):
+            clean, noisy, n = get_minibatch(params, sample=False)
+            l = train_fn(noisy, clean)
+            loss_plot.append(l)
+            print i, 'loss = ', l
+        loss_plots.append(loss_plot)
     # test/plot
     # clean, noisy, n = get_minibatch(params, sample=True)
     plt.figure()
-    plt.plot(loss_plot)
+    for snr, loss_plot in zip(snrs, loss_plots):
+        plt.semilogy(loss_plot)
     plt.xlabel('Number of iterations')
     plt.ylabel('Loss')
     plt.title('Loss vs. Number of Iterations')
+    plt.legend(['{} dB'.format(str(i)) for i in snrs])
     plt.savefig('loss.pdf', format='pdf')
 
 
