@@ -17,14 +17,14 @@ batch_norm = lasagne.layers.batch_norm
 dtype = theano.config.floatX
 
 default_params = {
-    'batchsize': 96,
+    'batchsize': 256,
     'framelen': 1024,
     'srate': 16000,
     'window': np.hanning,
     'pct': 0.5,
     'reg': False,
     'snr': 100,  # dB
-    'niter': 500,
+    'niter': 200,
 }
 default_params['fftlen'] = default_params['framelen']
 
@@ -35,7 +35,7 @@ def simple_autoencoder(params=default_params):
     x = T.matrix('x')  # dirty
     s = T.matrix('s')  # clean
     in_layer = layers.InputLayer(shape, x)
-    bottlesize = int(shape[1]*2)
+    bottlesize = int(shape[1]/2)
     print 'bottle: ', bottlesize
     h1 = layers.DenseLayer(in_layer, bottlesize, nonlinearity=nonlin.rectify)
     x_hat = layers.DenseLayer(h1, shape[1], nonlinearity=nonlin.identity)
@@ -53,7 +53,7 @@ def loss(x_hat, x, s, reg=False):
 
 def train(x_hat, x, s, loss):
     params = lasagne.layers.get_all_params(x_hat, trainable=True)
-    updates = lasagne.updates.adadelta(loss, params)
+    updates = lasagne.updates.adam(loss, params)
     train_fn = theano.function([x,s], loss, updates=updates)
     return train_fn
 
@@ -107,7 +107,7 @@ def get_minibatch(params=default_params, sample=False):
 def run(x_hat, x, s, loss, train_fn, params=default_params):
     predict_fn = theano.function([x], get_output(x_hat))
     niter = params.get('niter')
-    snrs = [-6,0,6,12]
+    snrs = [0,6,12,18]
 
     loss_plots = []
     for snr in snrs:
