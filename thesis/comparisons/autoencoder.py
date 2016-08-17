@@ -14,10 +14,10 @@ from sklearn.metrics import mean_squared_error
 
 
 dtype = theano.config.floatX
-batchsize = 96
+batchsize = 64
 # framelen = 441
 srate = 16000
-pct = 0.25  # overlap
+pct = 0.5  # overlap
 fftlen = 1024
 framelen = fftlen
 # overlap = int(framelen/2)
@@ -55,11 +55,11 @@ def curro_net(params):
     shape = (batchsize, framelen)
     x = T.matrix('x')  # dirty input
     label = T.matrix('label')  # noise OR signal/noise
-    in_layer = batch_norm(lasagne.layers.InputLayer(shape, x))
-    layersizes=1024
-    h1 = batch_norm(lasagne.layers.DenseLayer(in_layer, layersizes, nonlinearity=mod_relu))
-    h2 = batch_norm(lasagne.layers.DenseLayer(h1, layersizes, nonlinearity=mod_relu))
-    h3 = batch_norm(lasagne.layers.DenseLayer(h2, layersizes, nonlinearity=mod_relu))
+    in_layer = lasagne.layers.InputLayer(shape, x)  # batch norm or no?
+    layersizes = 1024
+    h1 = lasagne.layers.DenseLayer(in_layer, layersizes, nonlinearity=mod_relu)
+    h2 = lasagne.layers.DenseLayer(h1, layersizes, nonlinearity=mod_relu)
+    h3 = lasagne.layers.DenseLayer(h2, layersizes, nonlinearity=mod_relu)
     f = h3  # at this point, first half is signal, second half is noise
     f_sig = lasagne.layers.SliceLayer(f, indices=slice(0,int(layersizes/2)), axis=-1)
     sig_d3 = lasagne.layers.DenseLayer(f_sig, 768, nonlinearity=mod_relu)
@@ -83,8 +83,10 @@ def curro_net(params):
     # label is 1 for signal, 0 for noise
     prediction = label * prediction_sig + prediction_noi
     loss = lasagne.objectives.squared_error(prediction, x)
+    loss_sig = lasagne.objectives.squared_error(prediction_sig, x)
+    loss_noi = lasagne.objectives.squared_error(prediction_noi, x)
 
-    return out_layer, g_sig, x, label, loss.mean(), g_noi, prediction
+    return out_layer, g_sig, x, label, loss.mean(), g_noi, prediction, loss_sig, loss_noi, sig_d3.W, noi_d3.W
 
 
 def autoencoder(params):
@@ -167,7 +169,7 @@ def gen_batch_half_noisy_half_noise(sample=False):
     #import ipdb; ipdb.set_trace()
 
     # corrupt with gaussian noise
-    noise = np.random.normal(0, 1e-8, clean.shape)
+    noise = np.random.normal(0, 1e-5, clean.shape)
     noisy = clean + noise
 
     if sample:
@@ -181,6 +183,7 @@ def gen_batch_half_noisy_half_noise(sample=False):
         # assuming "noisy" example for sample, not noise example
         labels = np.ones((batchsize,1))
     labels = np.tile(labels, (1,framelen))
+    print labels
 
     return clean.astype(dtype), noisy.astype(dtype), n, labels.astype(dtype)
 
@@ -241,10 +244,10 @@ def paris_main(params):
     clean_time = normalize(ISTFT(clean[0], clean[1], fftlen))
     mse = mean_squared_error(cleaned_up_time, clean_time)
     print 'mse ', mse
-    wavwrite(cleaned_up_time/max(abs(cleaned_up_time)), 'paris/xhat.wav', fs=srate, enc='pcm16')
-    wavwrite(clean_time/max(abs(clean_time)), 'paris/x.wav', fs=srate, enc='pcm16')
+    wavwrite(normalize(cleaned_up_time), 'paris/xhat.wav', fs=srate, enc='pcm16')
+    wavwrite(normalize(clean_time), 'paris/x.wav', fs=srate, enc='pcm16')
     noisy_time = normalize(ISTFT(noisy[0], noisy[1], fftlen))
-    wavwrite(noisy_time/max(abs(noisy_time)), 'paris/n.wav', fs=srate, enc='pcm16')
+    wavwrite(normalize(noisy_time)), 'paris/n.wav', fs=srate, enc='pcm16')
     plt.figure()
     plt.subplot(411)
     #plt.plot(cleaned_up_time[0:fftlen*2])
@@ -261,30 +264,46 @@ def paris_main(params):
 
 
 def curro_main(params):
-    g_sig, g_sig_for_real, x, s, loss, g_noi_for_real, x_hat = curro_net({})
+    g_sig, g_sig_for_real, x, s, loss, g_noi_for_real, x_hat, loss_sig, loss_noi, w_sig, w_noi = curro_net({})
     train_fn = train(g_sig,x,s,loss)
+    train_sig = theano.function([x], loss_sig.mean())
+    train_noi = theano.function([x], loss_noi.mean())
     lmse = []
+    lsig = []
+    lnoi = []
     #predict_fn = theano.function([x], lasagne.layers.get_output(g_sig))
     predict_fn = theano.function([x], lasagne.layers.get_output(g_sig_for_real))
     predict_fn_noi = theano.function([x], lasagne.layers.get_output(g_noi_for_real))
+    both = theano.function([x,s], x_hat)
     for i in xrange(params.get('niter')):
         clean, noisy, n, labels = gen_freq_data(sample=False, gen_data_fn=gen_batch_half_noisy_half_noise)
         loss = train_fn(noisy[0], labels)
         lmse.append(loss)
-        print i, loss
+        loss1 = train_sig(noisy[0])
+        lsig.append(loss1)
+        loss2 = train_noi(noisy[0])
+        lnoi.append(loss2)
+        print i, loss, loss1, loss2
+        #import ipdb; ipdb.set_trace()
+        #assert np.array_equal(w_sig.get_value(),w_noi.get_value())
     clean, noisy, n, labels = gen_freq_data(sample=True, gen_data_fn=gen_batch_half_noisy_half_noise)
     cleaned_up = predict_fn(noisy[0])
     noisy_reconstructed = predict_fn_noi(noisy[0])
+    both_ffts = both(noisy[0], labels)
     cleaned_up_time = normalize(ISTFT(cleaned_up, noisy[1], fftlen))
     clean_time = normalize(ISTFT(clean[0], clean[1], fftlen))
     noisy_reconstructed = normalize(ISTFT(noisy_reconstructed, noisy[1], fftlen))
+    both_time = normalize(ISTFT(both_ffts, noisy[1], fftlen))
     mse = mean_squared_error(cleaned_up_time, clean_time)
     mse_noi = mean_squared_error(noisy_reconstructed, clean_time)
+    mse_both = mean_squared_error(both_time, clean_time)
     print 'mse ', mse
     print 'mse of noisy half ', mse_noi
-    wavwrite(cleaned_up_time/max(abs(cleaned_up_time)), 'curro/xhat.wav', fs=srate, enc='pcm16')
-    wavwrite(clean_time/max(abs(clean_time)), 'curro/x.wav', fs=srate, enc='pcm16')
-    wavwrite(noisy_reconstructed/max(abs(noisy_reconstructed)), 'curro/nxhat.wav', fs=srate, enc='pcm16')
+    print 'mse of combined (both) ', mse_both
+    wavwrite(normalize(cleaned_up_time), 'curro/xhat.wav', fs=srate, enc='pcm16')
+    wavwrite(normalize(clean_time), 'curro/x.wav', fs=srate, enc='pcm16')
+    wavwrite(normalize(noisy_reconstructed), 'curro/nxhat.wav', fs=srate, enc='pcm16')
+    wavwrite(normalize(both_time), 'curro/both.wav', fs=srate, enc='pcm16')
     plt.figure()
     plt.subplot(511)
     plt.plot(clean_time[0:fftlen*3])
@@ -299,6 +318,11 @@ def curro_main(params):
     plt.subplot(515)
     plt.plot(noisy_reconstructed[0:fftlen*3])
     plt.savefig('curro/x.svg', format='svg')
+    plt.figure()
+    plt.plot(lsig)
+    plt.plot(lnoi)
+    plt.legend(['sig', 'noi'])
+    plt.savefig('curro/split.svg', format='svg')
 
 
 def sim_():

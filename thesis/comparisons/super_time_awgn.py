@@ -17,14 +17,14 @@ batch_norm = lasagne.layers.batch_norm
 dtype = theano.config.floatX
 
 default_params = {
-    'batchsize': 256,
+    'batchsize': 64,
     'framelen': 1024,
     'srate': 16000,
     'window': np.hanning,
     'pct': 0.5,
     'reg': False,
     'snr': 100,  # dB
-    'niter': 200,
+    'niter': 800,
 }
 default_params['fftlen'] = default_params['framelen']
 
@@ -37,7 +37,7 @@ def simple_autoencoder(params=default_params):
     in_layer = layers.InputLayer(shape, x)
     bottlesize = int(shape[1]/2)
     print 'bottle: ', bottlesize
-    h1 = layers.DenseLayer(in_layer, bottlesize, nonlinearity=nonlin.rectify)
+    h1 = layers.DenseLayer(in_layer, bottlesize, nonlinearity=mod_relu)
     x_hat = layers.DenseLayer(h1, shape[1], nonlinearity=nonlin.identity)
 
     return x_hat, x, s
@@ -46,8 +46,8 @@ def loss(x_hat, x, s, reg=False):
     prediction = layers.get_output(x_hat)
     loss_fn = lasagne.objectives.squared_error(prediction, s)
     if reg:
-        reg = 2 * (1e-5 * lasagne.regularization.regularize_network_params(x_hat, lasagne.regularization.l2) + \
-              1e-6 * lasagne.regularization.regularize_network_params(x_hat, lasagne.regularization.l1))
+        reg = (1e-6 * lasagne.regularization.regularize_network_params(x_hat, lasagne.regularization.l2) + \
+              1e-7 * lasagne.regularization.regularize_network_params(x_hat, lasagne.regularization.l1))
         loss_fn = loss_fn + reg
     return loss_fn.mean()
 
@@ -90,6 +90,7 @@ def get_minibatch(params=default_params, sample=False):
 
     # corrupt with gaussian noise
     noise_var = _noise_var(clean, snr)
+    print 'noise var =', noise_var
     noise = np.random.normal(0, noise_var, clean.shape)
     noisy = clean + noise
 
