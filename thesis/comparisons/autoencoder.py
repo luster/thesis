@@ -3,7 +3,8 @@ from __future__ import division
 # different signals (sine, recording)
 # different noises (awgn, crowd)
 # different domains (time, freq)
-
+from numpy import complex64
+import scipy
 import lasagne
 import theano
 import theano.tensor as T
@@ -14,13 +15,22 @@ from sklearn.metrics import mean_squared_error
 
 
 dtype = theano.config.floatX
-batchsize = 64
+batchsize = 256
 # framelen = 441
 srate = 16000
 pct = 0.5  # overlap
 fftlen = 1024
 framelen = fftlen
 # overlap = int(framelen/2)
+
+# dan-specific
+shape = (batchsize,framelen)
+latentsize = 2000
+background_latents_factor = 0.5
+minibatch_noise_only_factor = 0.25
+n_noise_only_examples = int(minibatch_noise_only_factor * batchsize)
+n_background_latents = int(background_latents_factor * latentsize)
+lambduh = 0.0
 
 batch_norm = lasagne.layers.batch_norm
 
@@ -31,15 +41,107 @@ def mod_relu(x):
 def normalize(x):
     return x / max(abs(x))
 
-def dan_net(params):
-    shape = (batchsize, fftlen)
-    x = T.matrix('x')
-    s = T.matrix('s')
-    in_layer = batch_norm(lasagne.layers.InputLayer(shape, x))
+def snr_after(x, x_hat):
+    return np.var(x)/np.var(x-x_hat)
 
 
-def dan_main():
-    pass
+class ZeroOutBackgroundLatentsLayer(lasagne.layers.Layer):
+    def __init__(self, incoming, **kwargs):
+        super(ZeroOutBackgroundLatentsLayer, self).__init__(incoming)
+        n_background_latents = int(kwargs.get('background_latents_factor') * framelen)
+        mask = np.ones(shape)
+        mask[:, 0:n_background_latents] = 0
+        self.mask = theano.shared(mask, borrow=True)
+
+    def get_output_for(self, input_data, reconstruct=False, **kwargs):
+        if reconstruct:
+            return self.mask * input_data
+        return input_data
+
+
+def dan_net():
+    # net
+    x = T.matrix('X')  # input
+    y = T.matrix('Y')  # soft label
+    network = batch_norm(lasagne.layers.InputLayer(shape, x))
+    print network.output_shape
+    network = lasagne.layers.DenseLayer(network, latentsize, nonlinearity=mod_relu)
+    print network.output_shape
+    latents = network
+    network = ZeroOutBackgroundLatentsLayer(latents, background_latents_factor=background_latents_factor)
+    network = lasagne.layers.DenseLayer(network, shape[1], nonlinearity=lasagne.nonlinearities.identity)
+    print network.output_shape
+
+    # loss
+    C = np.zeros((batchsize,latentsize))
+    C[0:n_noise_only_examples, n_background_latents + 1:] = 1
+    C_mat = theano.shared(np.asarray(C, dtype=dtype), borrow=True)
+    mean_C = theano.shared(C.mean(), borrow=True)
+    prediction = lasagne.layers.get_output(network)
+    loss = lasagne.objectives.squared_error(prediction, x)
+    square_term = loss.mean()
+    regularization_term = lambduh/mean_C * y * ((C_mat * lasagne.layers.get_output(latents)).mean())**2
+    loss = (loss.mean() + regularization_term).mean()
+
+    # training compilation
+    params = lasagne.layers.get_all_params(network, trainable=True)
+    updates = lasagne.updates.adadelta(loss, params)
+    train_fn = theano.function([x,y], loss, updates=updates)
+
+    # inference compilation
+    predict_fn = theano.function([x], lasagne.layers.get_output(network, deterministic=True, reconstruct=True))
+
+    #
+    # other objectives
+    #
+    square_term = theano.function([x], square_term)
+    regularization_term = theano.function([x,y], regularization_term.mean())
+
+    def do_stuff(network, latents, predict_fn):
+        pass
+
+    return network, latents, loss, square_term, regularization_term, train_fn, predict_fn, do_stuff
+
+def dan_main(params):
+    network, latents, loss, square_loss, reg_loss, train_fn, predict_fn, do_stuff = dan_net()
+    lmse = []
+    lsq = []
+    lreg = []
+    for i in xrange(params.niter):
+        clean, noisy, n, labels = gen_freq_data(sample=False, gen_data_fn=gen_batch_half_noisy_half_noise)
+        # swap 0 and 1 since for dan net, 0 is signal and 1 is background
+        labels = np.expand_dims(np.abs(labels-1).astype(dtype)[:,1], axis=1)
+        # labels = np.abs(labels-1).astype(dtype)
+
+        loss = train_fn(noisy[0], labels)
+        lmse.append(loss)
+
+        loss_lsq = square_loss(noisy[0])
+        lsq.append(loss_lsq)
+
+        loss_reg = reg_loss(noisy[0], labels)
+        lreg.append(loss_reg)
+        print loss, '\t', loss_lsq, '\t', loss_reg
+
+
+    plt.figure()
+    plt.semilogy(lmse)
+    plt.savefig('dan/loss.pdf', format='pdf')
+
+    plt.figure()
+    plt.semilogy(lsq)
+    plt.savefig('dan/lsq.pdf', format='pdf')
+
+    plt.figure()
+    plt.semilogy(lreg)
+    plt.savefig('dan/lreg.pdf', format='pdf')
+
+    plt.figure()
+    plt.semilogy(lmse)
+    plt.semilogy(lsq)
+    plt.semilogy(lreg)
+    plt.legend(['overall loss', 'squared error loss', 'regularization loss'])
+    plt.savefig('dan/losses.svg', format='svg')
 
 
 def paris_net(params):
@@ -55,29 +157,31 @@ def paris_net(params):
     loss = lasagne.objectives.squared_error(prediction, s)
     return h1, x, s, loss.mean(), None, prediction
 
-
 def curro_net(params):
     # input
     shape = (batchsize, framelen)
     x = T.matrix('x')  # dirty input
     label = T.matrix('label')  # noise OR signal/noise
 
+    nonlin = mod_relu
+
     # network
-    in_layer = batch_norm(lasagne.layers.InputLayer(shape, x))  # batch norm or no?
+    # in_layer = batch_norm(lasagne.layers.InputLayer(shape, x))  # batch norm or no?
+    in_layer = lasagne.layers.InputLayer(shape, x) # batch norm or no?
     layersizes = 1024*2
-    h1 = lasagne.layers.DenseLayer(in_layer, layersizes, nonlinearity=mod_relu)
-    h2 = lasagne.layers.DenseLayer(h1, layersizes, nonlinearity=mod_relu)
-    h3 = lasagne.layers.DenseLayer(h2, layersizes, nonlinearity=mod_relu)
+    h1 = lasagne.layers.DenseLayer(in_layer, layersizes, nonlinearity=nonlin)
+    h2 = lasagne.layers.DenseLayer(h1, layersizes, nonlinearity=nonlin)
+    h3 = lasagne.layers.DenseLayer(h2, layersizes, nonlinearity=nonlin)
     f = h3  # at this point, first half is signal, second half is noise
 
     # signal split
     f_sig = lasagne.layers.SliceLayer(f, indices=slice(0,int(layersizes/2)), axis=-1)
     print 'sig split size: ', lasagne.layers.get_output_shape(f_sig)
-    sig_d3 = lasagne.layers.DenseLayer(f_sig, framelen, nonlinearity=mod_relu)
+    sig_d3 = lasagne.layers.DenseLayer(f_sig, framelen, nonlinearity=nonlin)
     # save parameters for noise split
     d3_W = sig_d3.W
     d3_b = sig_d3.b
-    sig_d2 = lasagne.layers.DenseLayer(sig_d3, framelen, nonlinearity=mod_relu)
+    sig_d2 = lasagne.layers.DenseLayer(sig_d3, framelen, nonlinearity=nonlin)
     d2_W = sig_d2.W
     d2_b = sig_d2.b
     g_sig = lasagne.layers.DenseLayer(sig_d2, framelen, nonlinearity=lasagne.nonlinearities.identity)
@@ -86,8 +190,8 @@ def curro_net(params):
 
     f_noi = lasagne.layers.SliceLayer(f, indices=slice(int(layersizes/2),layersizes), axis=-1)
     print 'noisy split size: ', lasagne.layers.get_output_shape(f_noi)
-    noi_d3 = lasagne.layers.DenseLayer(f_noi, framelen, W=d3_W, b=d3_b, nonlinearity=mod_relu)
-    noi_d2 = lasagne.layers.DenseLayer(noi_d3, framelen, W=d2_W, b=d2_b, nonlinearity=mod_relu)
+    noi_d3 = lasagne.layers.DenseLayer(f_noi, framelen, W=d3_W, b=d3_b, nonlinearity=nonlin)
+    noi_d2 = lasagne.layers.DenseLayer(noi_d3, framelen, W=d2_W, b=d2_b, nonlinearity=nonlin)
     g_noi = lasagne.layers.DenseLayer(noi_d2, framelen, W=gs_W, b=gs_b, nonlinearity=lasagne.nonlinearities.identity)
 
     out_layer = lasagne.layers.ElemwiseSumLayer([g_sig,g_noi])
@@ -101,7 +205,6 @@ def curro_net(params):
     loss_noi = lasagne.objectives.squared_error(prediction_noi, x)
 
     return out_layer, g_sig, x, label, loss.mean(), g_noi, prediction, loss_sig, loss_noi
-
 
 def autoencoder(params):
     # network
@@ -127,14 +230,13 @@ def autoencoder(params):
     loss = loss + reg
     return x_hat, x, s, loss.mean(), reg.mean(), prediction
 
-
 def train(autoencoder, x, s, loss):
     params = lasagne.layers.get_all_params(autoencoder, trainable=True)
+    print params
     #updates = lasagne.updates.adam(loss, params)
     updates = lasagne.updates.adamax(loss, params)
     train_fn = theano.function([x,s], loss, updates=updates)
     return train_fn
-
 
 def gen_data(sample=False):
     def _sin_f(a, f, srate, n, phase):
@@ -164,10 +266,9 @@ def gen_data(sample=False):
 
     return clean.astype(dtype), noisy.astype(dtype), n, None
 
-
 def gen_batch_half_noisy_half_noise(sample=False):
-    nop = 0.5  # noise only percentage of minibatch
-    snr = 6  # dB
+    nop = minibatch_noise_only_factor  # noise only percentage of minibatch
+    snr = 100  # dB
     f = 440
     if sample:
         n = np.linspace(0, batchsize * framelen - 1, batchsize * framelen)
@@ -194,7 +295,6 @@ def gen_batch_half_noisy_half_noise(sample=False):
         noise_var = _noise_var(clean[int(batchsize*nop):,:], snr)
     else:
         noise_var = _noise_var(clean[int(batchsize*nop):], snr)
-    print noise_var
     noise = np.random.normal(0, noise_var, clean.shape)
     noisy = clean + noise
 
@@ -212,13 +312,9 @@ def gen_batch_half_noisy_half_noise(sample=False):
         labels = np.ones((batchsize,1))
         # labels = np.zeros((batchsize,1))
     labels = np.tile(labels, (1,framelen))
-    #print labels
 
     return clean.astype(dtype), noisy.astype(dtype), n, labels.astype(dtype)
 
-
-from numpy import complex64
-import scipy
 def stft(x, framelen, overlap=int(pct*framelen)):
     w = scipy.hanning(framelen)
     X = np.array([scipy.fft(w*x[i:i+framelen], freq_bins)
@@ -226,12 +322,10 @@ def stft(x, framelen, overlap=int(pct*framelen)):
     X = np.transpose(X)
     return np.abs(X), np.angle(X)
 
-
 def fft(x, fftlen):
     w = np.tile((scipy.hanning(fftlen)), (batchsize, 1))
     X = scipy.fft(w*x, fftlen, axis=-1)
     return np.abs(X).astype(dtype), np.angle(X).astype(dtype)
-
 
 def gen_freq_data(sample=False, gen_data_fn=gen_data):
     # for training, use FFTs of any frames
@@ -262,7 +356,7 @@ def paris_main(params):
     train_fn = train(a,x,s,loss)
     lmse = []
     predict_fn = theano.function([x], x_hat)
-    for i in xrange(params.get('niter')):
+    for i in xrange(params.niter):
         clean, noisy, n, _ = gen_freq_data()
         loss = train_fn(noisy[0], clean[0])
         lmse.append(loss)
@@ -291,20 +385,18 @@ def paris_main(params):
     plt.plot(np.unwrap(clean[1][0,:]))
     plt.savefig('paris/x.svg', format='svg')
 
-
 def curro_main(params):
-    g_sig, g_sig_for_real, x, s, loss, g_noi_for_real, x_hat, loss_sig, loss_noi  = curro_net({})
+    g_sig, g_sig_for_real, x, s, loss, g_noi_for_real, x_hat, loss_sig, loss_noi = curro_net({})
     train_fn = train(g_sig,x,s,loss)
     train_sig = theano.function([x], loss_sig.mean())
     train_noi = theano.function([x], loss_noi.mean())
     lmse = []
     lsig = []
     lnoi = []
-    #predict_fn = theano.function([x], lasagne.layers.get_output(g_sig))
-    predict_fn = theano.function([x], lasagne.layers.get_output(g_sig_for_real))
-    predict_fn_noi = theano.function([x], lasagne.layers.get_output(g_noi_for_real))
-    both = theano.function([x,s], x_hat)
-    for i in xrange(params.get('niter')):
+    predict_fn = theano.function([x], lasagne.layers.get_output(g_sig_for_real, deterministic=True))
+    predict_fn_noi = theano.function([x], lasagne.layers.get_output(g_noi_for_real, deterministic=True))
+    both = theano.function([x], lasagne.layers.get_output(g_sig, deterministic=True))
+    for i in xrange(params.niter):
         clean, noisy, n, labels = gen_freq_data(sample=False, gen_data_fn=gen_batch_half_noisy_half_noise)
         loss = train_fn(noisy[0], labels)
         lmse.append(loss)
@@ -320,7 +412,7 @@ def curro_main(params):
 
     cleaned_up = predict_fn(noisy[0])
     noisy_reconstructed = predict_fn_noi(noisy[0])
-    both_ffts = both(noisy[0], labels)
+    both_ffts = both(noisy[0])
 
     cleaned_up_time = normalize(ISTFT(cleaned_up, noisy[1], fftlen))
     clean_time = normalize(ISTFT(clean[0], clean[1], fftlen))
@@ -411,11 +503,10 @@ if __name__ == "__main__":
     parser.add_argument('net', type=str, help='super, paris, dan, or curro', default='super')
     parser.add_argument('-n', '--niter', type=int, help='number of iterations', default=100)
     args = parser.parse_args()
-    niter = args.niter
     mapping = {
         'super': autoencoder,
         'paris': paris_main,
         'dan': dan_main,
         'curro': curro_main,
     }
-    mapping[args.net]({'niter':niter})
+    mapping[args.net](args)
