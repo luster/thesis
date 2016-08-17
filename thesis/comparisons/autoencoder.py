@@ -31,10 +31,15 @@ def mod_relu(x):
 def normalize(x):
     return x / max(abs(x))
 
-def fhfft(X):
-    size_x = X.shape
-    return np.concatenate(
-    )
+def dan_net(params):
+    shape = (batchsize, fftlen)
+    x = T.matrix('x')
+    s = T.matrix('s')
+    in_layer = batch_norm(lasagne.layers.InputLayer(shape, x))
+
+
+def dan_main():
+    pass
 
 
 def paris_net(params):
@@ -52,30 +57,39 @@ def paris_net(params):
 
 
 def curro_net(params):
+    # input
     shape = (batchsize, framelen)
     x = T.matrix('x')  # dirty input
     label = T.matrix('label')  # noise OR signal/noise
-    in_layer = lasagne.layers.InputLayer(shape, x)  # batch norm or no?
-    layersizes = 1024
+
+    # network
+    in_layer = batch_norm(lasagne.layers.InputLayer(shape, x))  # batch norm or no?
+    layersizes = 1024*2
     h1 = lasagne.layers.DenseLayer(in_layer, layersizes, nonlinearity=mod_relu)
     h2 = lasagne.layers.DenseLayer(h1, layersizes, nonlinearity=mod_relu)
     h3 = lasagne.layers.DenseLayer(h2, layersizes, nonlinearity=mod_relu)
     f = h3  # at this point, first half is signal, second half is noise
+
+    # signal split
     f_sig = lasagne.layers.SliceLayer(f, indices=slice(0,int(layersizes/2)), axis=-1)
-    sig_d3 = lasagne.layers.DenseLayer(f_sig, 768, nonlinearity=mod_relu)
+    print 'sig split size: ', lasagne.layers.get_output_shape(f_sig)
+    sig_d3 = lasagne.layers.DenseLayer(f_sig, framelen, nonlinearity=mod_relu)
+    # save parameters for noise split
     d3_W = sig_d3.W
     d3_b = sig_d3.b
-    sig_d2 = lasagne.layers.DenseLayer(sig_d3, layersizes, nonlinearity=mod_relu)
+    sig_d2 = lasagne.layers.DenseLayer(sig_d3, framelen, nonlinearity=mod_relu)
     d2_W = sig_d2.W
     d2_b = sig_d2.b
     g_sig = lasagne.layers.DenseLayer(sig_d2, framelen, nonlinearity=lasagne.nonlinearities.identity)
+    gs_W = g_sig.W
+    gs_b = g_sig.b
 
     f_noi = lasagne.layers.SliceLayer(f, indices=slice(int(layersizes/2),layersizes), axis=-1)
-    noi_d3 = lasagne.layers.DenseLayer(f_noi, 768, W=d3_W, b=d3_b, nonlinearity=mod_relu)
-    noi_d2 = lasagne.layers.DenseLayer(noi_d3, layersizes, W=d2_W, b=d2_b, nonlinearity=mod_relu)
-    g_noi = lasagne.layers.DenseLayer(noi_d2, framelen, nonlinearity=lasagne.nonlinearities.identity)
+    print 'noisy split size: ', lasagne.layers.get_output_shape(f_noi)
+    noi_d3 = lasagne.layers.DenseLayer(f_noi, framelen, W=d3_W, b=d3_b, nonlinearity=mod_relu)
+    noi_d2 = lasagne.layers.DenseLayer(noi_d3, framelen, W=d2_W, b=d2_b, nonlinearity=mod_relu)
+    g_noi = lasagne.layers.DenseLayer(noi_d2, framelen, W=gs_W, b=gs_b, nonlinearity=lasagne.nonlinearities.identity)
 
-    # TODO: recombine network?
     out_layer = lasagne.layers.ElemwiseSumLayer([g_sig,g_noi])
 
     prediction_sig = lasagne.layers.get_output(g_sig)
@@ -86,7 +100,7 @@ def curro_net(params):
     loss_sig = lasagne.objectives.squared_error(prediction_sig, x)
     loss_noi = lasagne.objectives.squared_error(prediction_noi, x)
 
-    return out_layer, g_sig, x, label, loss.mean(), g_noi, prediction, loss_sig, loss_noi, sig_d3.W, noi_d3.W
+    return out_layer, g_sig, x, label, loss.mean(), g_noi, prediction, loss_sig, loss_noi
 
 
 def autoencoder(params):
@@ -152,6 +166,8 @@ def gen_data(sample=False):
 
 
 def gen_batch_half_noisy_half_noise(sample=False):
+    nop = 0.5  # noise only percentage of minibatch
+    snr = 6  # dB
     f = 440
     if sample:
         n = np.linspace(0, batchsize * framelen - 1, batchsize * framelen)
@@ -163,13 +179,23 @@ def gen_batch_half_noisy_half_noise(sample=False):
         phase = np.tile(np.random.uniform(0.0, 2*np.pi, batchsize), (framelen, 1)).transpose()
         amp = np.tile(np.random.uniform(0.35, 0.65, batchsize), (framelen,1)).transpose()
         clean = amp * np.sin(2 * np.pi * f / srate * n + phase)
-        clean[0:int(batchsize/2),:] = 0
-    # window
-    # clean = np.hanning(framelen) * clean
-    #import ipdb; ipdb.set_trace()
+        clean[0:int(batchsize*nop),:] = 0
+
+    def _noise_var(clean, snr_db):
+        # we use one noise variance per minibatch
+        avg_energy = np.sum(clean*clean)/clean.size
+        snr_lin = 10**(snr_db/10)
+        noise_var = avg_energy / snr_lin
+        # print 'noise variance for minibatch: ', noise_var
+        return noise_var
 
     # corrupt with gaussian noise
-    noise = np.random.normal(0, 1e-5, clean.shape)
+    if not sample:
+        noise_var = _noise_var(clean[int(batchsize*nop):,:], snr)
+    else:
+        noise_var = _noise_var(clean[int(batchsize*nop):], snr)
+    print noise_var
+    noise = np.random.normal(0, noise_var, clean.shape)
     noisy = clean + noise
 
     if sample:
@@ -178,12 +204,15 @@ def gen_batch_half_noisy_half_noise(sample=False):
 
     if not sample:
         labels = np.ones((batchsize,1))
-        labels[0:int(batchsize/2)]=0
+        labels[0:int(batchsize*nop)]=0
+        # labels = np.zeros((batchsize,1))
+        # labels[0:int(batchsize*nop)]=1
     else:
         # assuming "noisy" example for sample, not noise example
         labels = np.ones((batchsize,1))
+        # labels = np.zeros((batchsize,1))
     labels = np.tile(labels, (1,framelen))
-    print labels
+    #print labels
 
     return clean.astype(dtype), noisy.astype(dtype), n, labels.astype(dtype)
 
@@ -247,7 +276,7 @@ def paris_main(params):
     wavwrite(normalize(cleaned_up_time), 'paris/xhat.wav', fs=srate, enc='pcm16')
     wavwrite(normalize(clean_time), 'paris/x.wav', fs=srate, enc='pcm16')
     noisy_time = normalize(ISTFT(noisy[0], noisy[1], fftlen))
-    wavwrite(normalize(noisy_time)), 'paris/n.wav', fs=srate, enc='pcm16')
+    wavwrite(normalize(noisy_time), 'paris/n.wav', fs=srate, enc='pcm16')
     plt.figure()
     plt.subplot(411)
     #plt.plot(cleaned_up_time[0:fftlen*2])
@@ -264,7 +293,7 @@ def paris_main(params):
 
 
 def curro_main(params):
-    g_sig, g_sig_for_real, x, s, loss, g_noi_for_real, x_hat, loss_sig, loss_noi, w_sig, w_noi = curro_net({})
+    g_sig, g_sig_for_real, x, s, loss, g_noi_for_real, x_hat, loss_sig, loss_noi  = curro_net({})
     train_fn = train(g_sig,x,s,loss)
     train_sig = theano.function([x], loss_sig.mean())
     train_noi = theano.function([x], loss_noi.mean())
@@ -279,24 +308,29 @@ def curro_main(params):
         clean, noisy, n, labels = gen_freq_data(sample=False, gen_data_fn=gen_batch_half_noisy_half_noise)
         loss = train_fn(noisy[0], labels)
         lmse.append(loss)
+
         loss1 = train_sig(noisy[0])
         lsig.append(loss1)
+
         loss2 = train_noi(noisy[0])
         lnoi.append(loss2)
+
         print i, loss, loss1, loss2
-        #import ipdb; ipdb.set_trace()
-        #assert np.array_equal(w_sig.get_value(),w_noi.get_value())
     clean, noisy, n, labels = gen_freq_data(sample=True, gen_data_fn=gen_batch_half_noisy_half_noise)
+
     cleaned_up = predict_fn(noisy[0])
     noisy_reconstructed = predict_fn_noi(noisy[0])
     both_ffts = both(noisy[0], labels)
+
     cleaned_up_time = normalize(ISTFT(cleaned_up, noisy[1], fftlen))
     clean_time = normalize(ISTFT(clean[0], clean[1], fftlen))
     noisy_reconstructed = normalize(ISTFT(noisy_reconstructed, noisy[1], fftlen))
     both_time = normalize(ISTFT(both_ffts, noisy[1], fftlen))
+
     mse = mean_squared_error(cleaned_up_time, clean_time)
     mse_noi = mean_squared_error(noisy_reconstructed, clean_time)
     mse_both = mean_squared_error(both_time, clean_time)
+    #print 'baseline mse', mean_squared_error()  TODO: mse
     print 'mse ', mse
     print 'mse of noisy half ', mse_noi
     print 'mse of combined (both) ', mse_both
@@ -381,7 +415,7 @@ if __name__ == "__main__":
     mapping = {
         'super': autoencoder,
         'paris': paris_main,
-        'dan': None,
+        'dan': dan_main,
         'curro': curro_main,
     }
     mapping[args.net]({'niter':niter})
