@@ -26,11 +26,11 @@ framelen = fftlen
 # dan-specific
 shape = (batchsize,framelen)
 latentsize = 2048
-background_latents_factor = 0.5
+background_latents_factor = 0.125
 minibatch_noise_only_factor = 0.25
 n_noise_only_examples = int(minibatch_noise_only_factor * batchsize)
 n_background_latents = int(background_latents_factor * latentsize)
-lambduh = 0.75
+lambduh = 0.75/50
 
 batch_norm = lasagne.layers.batch_norm
 
