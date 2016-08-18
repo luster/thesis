@@ -15,7 +15,7 @@ from sklearn.metrics import mean_squared_error
 
 
 dtype = theano.config.floatX
-batchsize = 256
+batchsize = 128
 # framelen = 441
 srate = 16000
 pct = 0.5  # overlap
@@ -25,12 +25,12 @@ framelen = fftlen
 
 # dan-specific
 shape = (batchsize,framelen)
-latentsize = 2000
+latentsize = 2048
 background_latents_factor = 0.5
 minibatch_noise_only_factor = 0.25
 n_noise_only_examples = int(minibatch_noise_only_factor * batchsize)
 n_background_latents = int(background_latents_factor * latentsize)
-lambduh = 0.0
+lambduh = 0.75
 
 batch_norm = lasagne.layers.batch_norm
 
@@ -48,8 +48,7 @@ def snr_after(x, x_hat):
 class ZeroOutBackgroundLatentsLayer(lasagne.layers.Layer):
     def __init__(self, incoming, **kwargs):
         super(ZeroOutBackgroundLatentsLayer, self).__init__(incoming)
-        n_background_latents = int(kwargs.get('background_latents_factor') * framelen)
-        mask = np.ones(shape)
+        mask = np.ones((batchsize,latentsize))
         mask[:, 0:n_background_latents] = 0
         self.mask = theano.shared(mask, borrow=True)
 
@@ -63,13 +62,14 @@ def dan_net():
     # net
     x = T.matrix('X')  # input
     y = T.matrix('Y')  # soft label
-    network = batch_norm(lasagne.layers.InputLayer(shape, x))
+    #network = batch_norm(lasagne.layers.InputLayer(shape, x))
+    network = lasagne.layers.InputLayer(shape, x)
     print network.output_shape
     network = lasagne.layers.DenseLayer(network, latentsize, nonlinearity=mod_relu)
     print network.output_shape
     latents = network
     network = ZeroOutBackgroundLatentsLayer(latents, background_latents_factor=background_latents_factor)
-    network = lasagne.layers.DenseLayer(network, shape[1], nonlinearity=lasagne.nonlinearities.identity)
+    network = lasagne.layers.DenseLayer(network, shape[1], nonlinearity=lasagne.nonlinearities.rectify)
     print network.output_shape
 
     # loss
@@ -78,14 +78,15 @@ def dan_net():
     C_mat = theano.shared(np.asarray(C, dtype=dtype), borrow=True)
     mean_C = theano.shared(C.mean(), borrow=True)
     prediction = lasagne.layers.get_output(network)
-    loss = lasagne.objectives.squared_error(prediction, x)
-    square_term = loss.mean()
-    regularization_term = lambduh/mean_C * y * ((C_mat * lasagne.layers.get_output(latents)).mean())**2
-    loss = (loss.mean() + regularization_term).mean()
+    mse_term = lasagne.objectives.squared_error(prediction, x).sum(axis=[1], keepdims=True)
+    scf = lambduh/mean_C
+    regularization_term = scf * y * ((C_mat * lasagne.layers.get_output(latents))**2).sum(axis=[1], keepdims=True)
+    loss = mse_term + regularization_term
+    loss = loss.mean()
 
     # training compilation
     params = lasagne.layers.get_all_params(network, trainable=True)
-    updates = lasagne.updates.adadelta(loss, params)
+    updates = lasagne.updates.adamax(loss, params)
     train_fn = theano.function([x,y], loss, updates=updates)
 
     # inference compilation
@@ -94,7 +95,7 @@ def dan_net():
     #
     # other objectives
     #
-    square_term = theano.function([x], square_term)
+    square_term = theano.function([x], mse_term.mean())
     regularization_term = theano.function([x,y], regularization_term.mean())
 
     def do_stuff(network, latents, predict_fn):
@@ -121,20 +122,32 @@ def dan_main(params):
 
         loss_reg = reg_loss(noisy[0], labels)
         lreg.append(loss_reg)
-        print loss, '\t', loss_lsq, '\t', loss_reg
+        print '%d\t%.3E\t%.3E\t%.3E' % (i, loss, loss_lsq, loss_reg)
 
+    clean, noisy, n, labels = gen_freq_data(sample=True, gen_data_fn=gen_batch_half_noisy_half_noise)
+    cleaned_up = predict_fn(noisy[0])
+    print 'freq mse:', mean_squared_error(cleaned_up, clean[0])
+    cleaned_up_time = normalize(ISTFT(cleaned_up, noisy[1], fftlen))
+    cleaned_up_clean_phase = normalize(ISTFT(cleaned_up, clean[1], fftlen))
+    clean_time = normalize(ISTFT(clean[0], clean[1], fftlen))
+    noisy_time = normalize(ISTFT(noisy[0], noisy[1], fftlen))
+    print 'time mse noisy phase:', mean_squared_error(cleaned_up_time, clean_time)
+    print 'time mse clean phase:', mean_squared_error(cleaned_up_clean_phase, clean_time)
+    print 'baseline time mse noisy to clean:', mean_squared_error(noisy_time, clean_time)
+    wavwrite(clean_time, 'dan/x.wav', fs=srate, enc='pcm16')
+    wavwrite(noisy_time, 'dan/y.wav', fs=srate, enc='pcm16')
+    wavwrite(cleaned_up_time, 'dan/xhat.wav', fs=srate, enc='pcm16')
+    wavwrite(cleaned_up_clean_phase, 'dan/xhat_cleanphase.wav', fs=srate, enc='pcm16')
 
-    plt.figure()
-    plt.semilogy(lmse)
-    plt.savefig('dan/loss.pdf', format='pdf')
-
-    plt.figure()
-    plt.semilogy(lsq)
-    plt.savefig('dan/lsq.pdf', format='pdf')
-
-    plt.figure()
-    plt.semilogy(lreg)
-    plt.savefig('dan/lreg.pdf', format='pdf')
+    # plt.figure()
+    # plt.semilogy(lmse)
+    # plt.savefig('dan/loss.pdf', format='pdf')
+    # plt.figure()
+    # plt.semilogy(lsq)
+    # plt.savefig('dan/lsq.pdf', format='pdf')
+    # plt.figure()
+    # plt.semilogy(lreg)
+    # plt.savefig('dan/lreg.pdf', format='pdf')
 
     plt.figure()
     plt.semilogy(lmse)
@@ -268,7 +281,7 @@ def gen_data(sample=False):
 
 def gen_batch_half_noisy_half_noise(sample=False):
     nop = minibatch_noise_only_factor  # noise only percentage of minibatch
-    snr = 100  # dB
+    snr = 12  # dB
     f = 440
     if sample:
         n = np.linspace(0, batchsize * framelen - 1, batchsize * framelen)
