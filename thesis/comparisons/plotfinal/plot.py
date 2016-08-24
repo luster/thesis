@@ -7,7 +7,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('file', type=str, help='csv file to plot')
 	parser.add_argument('outname', type=str, help='output filename')
-	parser.add_argument('-t', type=str, help='plot type', default='eps')
+	parser.add_argument('-t', type=str, help='plot type', default='pdf')
 	parser.add_argument('-a', type=str, help='axes', default='semilogy')
 	args = parser.parse_args()
 	fname = args.file
@@ -16,7 +16,12 @@ if __name__ == '__main__':
 		r = csv.reader(f)
 		title, xlabel, ylabel = next(r)
 		legend = next(r)
-		xdata = [float(x) for x in xrange(int(next(r)[0]))]
+
+		xdataline = next(r)
+		if len(xdataline) == 1:
+			xdata = [float(x) for x in xrange(int(xdataline[0]))]
+		else:
+			xdata = xdataline
 		data = OrderedDict()
 		for line in r:
 			if line[0] not in data:

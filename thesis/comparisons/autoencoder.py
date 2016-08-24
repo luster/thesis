@@ -13,13 +13,13 @@ from scikits.audiolab import wavwrite
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
 
-SIMULATION_SNR = -6
+SIMULATION_SNR = 6
 FILE_SNR = '{} dB'.format(SIMULATION_SNR)
 FILENAME_LOSS = 'plotfinal/paris-loss.csv'
 FILENAME_MSE = 'plotfinal/paris-mse.csv'
 LOSSFILE = open(FILENAME_LOSS, 'a')
 MSEFILE = open(FILENAME_MSE, 'a')
-LINEFMT = FILE_SNR + ',{}'
+LINEFMT = FILE_SNR + ',{}\n'
 
 
 dtype = theano.config.floatX
@@ -253,9 +253,7 @@ def autoencoder(params):
 
 def train(autoencoder, x, s, loss):
     params = lasagne.layers.get_all_params(autoencoder, trainable=True)
-    print params
-    #updates = lasagne.updates.adam(loss, params)
-    updates = lasagne.updates.adamax(loss, params)
+    updates = lasagne.updates.adam(loss, params)
     train_fn = theano.function([x,s], loss, updates=updates)
     return train_fn
 
@@ -271,17 +269,32 @@ def gen_data(sample=False):
         # print 'noise variance for minibatch: ', noise_var
         return noise_var
 
-    f = 440
+    # f = 440
     if sample:
         n = np.linspace(0, batchsize * framelen - 1, batchsize * framelen)
-        phase = np.random.uniform(0.0, 2*np.pi)
-        amp = np.random.uniform(0.35, 0.6)
+        phase1 = np.random.uniform(0.0, 2*np.pi)
+        phase2 = np.random.uniform(0.0, 2*np.pi)
+        phase3 = np.random.uniform(0.0, 2*np.pi)
+        phase4 = np.random.uniform(0.0, 2*np.pi)
+        amp1 = np.random.uniform(0.25, 0.75)
+        amp2 = np.random.uniform(0.25, 0.75)
+        amp3 = np.random.uniform(0.25, 0.75)
+        amp4 = np.random.uniform(0.25, 0.75)
     else:
         n = np.tile(np.linspace(0, framelen-1, framelen), (batchsize,1))
-        phase = np.tile(np.random.uniform(0.0, 2*np.pi, batchsize), (framelen, 1)).transpose()
-        amp = np.tile(np.random.uniform(0.35, 0.65, batchsize), (framelen,1)).transpose()
+        phase1 = np.tile(np.random.uniform(0.0, 2*np.pi, batchsize), (framelen, 1)).transpose()
+        phase2 = np.tile(np.random.uniform(0.0, 2*np.pi, batchsize), (framelen, 1)).transpose()
+        phase3 = np.tile(np.random.uniform(0.0, 2*np.pi, batchsize), (framelen, 1)).transpose()
+        phase4 = np.tile(np.random.uniform(0.0, 2*np.pi, batchsize), (framelen, 1)).transpose()
+        amp1 = np.tile(np.random.uniform(0.25, 0.75, batchsize), (framelen,1)).transpose()
+        amp2 = np.tile(np.random.uniform(0.25, 0.75, batchsize), (framelen,1)).transpose()
+        amp3 = np.tile(np.random.uniform(0.25, 0.75, batchsize), (framelen,1)).transpose()
+        amp4 = np.tile(np.random.uniform(0.25, 0.75, batchsize), (framelen,1)).transpose()
     # clean = amp * np.sin(2 * np.pi * f / srate * n + phase)
-    clean = _sin_f(amp,441,srate,n,phase) +  _sin_f(amp, 635.25,srate,n,phase) + _sin_f(amp,528,srate,n,phase) + _sin_f(amp,880,srate,n,phase)
+    clean = _sin_f(amp1,441,srate,n,phase1) + \
+            _sin_f(amp2,549,srate,n,phase2) + \
+            _sin_f(amp3,660,srate,n,phase3) + \
+            _sin_f(amp4,881,srate,n,phase4)
 
     # corrupt with gaussian noise
     var = _noise_var(clean, SIMULATION_SNR)
@@ -386,21 +399,37 @@ def paris_main(params):
     train_fn = train(a,x,s,loss)
     lmse = []
     predict_fn = theano.function([x], x_hat)
-    for i in xrange(params.niter):
-        clean, noisy, n, _ = gen_freq_data()
-        loss = train_fn(noisy[0], clean[0])
+
+    np.random.seed(3)
+    clean, noisy, n, _ = gen_freq_data(sample=True)
+    np.random.seed()
+
+    for i in xrange(params.niter+1):
+        _clean, _noisy, _n, _ = gen_freq_data()
+        loss = train_fn(_noisy[0], _clean[0])
         LOSSFILE.write(LINEFMT.format(loss))
         lmse.append(loss)
         print i, loss
 
         if i in range(0,params.niter+50,50):
-            # validate
+            # validate mse
+            
+            cleaned_up = predict_fn(noisy[0])
+            cleaned_up_time = normalize(ISTFT(cleaned_up, noisy[1], fftlen))
+            clean_time = normalize(ISTFT(clean[0], clean[1], fftlen))
+            noisy_time = normalize(ISTFT(noisy[0], noisy[1], fftlen))
+            baseline_mse = mean_squared_error(clean_time, noisy_time)
+            print 'baseline mse:', baseline_mse
+            mse = mean_squared_error(cleaned_up_time, clean_time)
+            print 'mse:', mse
+            MSEFILE.write(LINEFMT.format(mse))
+
     clean, noisy, n, _ = gen_freq_data(sample=True)
     cleaned_up = predict_fn(noisy[0])
     cleaned_up_time = normalize(ISTFT(cleaned_up, noisy[1], fftlen))
     clean_time = normalize(ISTFT(clean[0], clean[1], fftlen))
     mse = mean_squared_error(cleaned_up_time, clean_time)
-    print 'mse ', mse
+    # print 'mse ', mse
     wavwrite(normalize(cleaned_up_time), 'paris/xhat.wav', fs=srate, enc='pcm16')
     wavwrite(normalize(clean_time), 'paris/x.wav', fs=srate, enc='pcm16')
     noisy_time = normalize(ISTFT(noisy[0], noisy[1], fftlen))
