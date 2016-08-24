@@ -13,6 +13,14 @@ from scikits.audiolab import wavwrite
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
 
+SIMULATION_SNR = -6
+FILE_SNR = '{} dB'.format(SIMULATION_SNR)
+FILENAME_LOSS = 'plotfinal/paris-loss.csv'
+FILENAME_MSE = 'plotfinal/paris-mse.csv'
+LOSSFILE = open(FILENAME_LOSS, 'a')
+MSEFILE = open(FILENAME_MSE, 'a')
+LINEFMT = FILE_SNR + ',{}'
+
 
 dtype = theano.config.floatX
 batchsize = 128
@@ -255,6 +263,14 @@ def gen_data(sample=False):
     def _sin_f(a, f, srate, n, phase):
         return a * np.sin(2*np.pi*f/srate*n+phase)
 
+    def _noise_var(clean, snr_db):
+        # we use one noise variance per minibatch
+        avg_energy = np.sum(clean*clean)/clean.size
+        snr_lin = 10**(snr_db/10)
+        noise_var = avg_energy / snr_lin
+        # print 'noise variance for minibatch: ', noise_var
+        return noise_var
+
     f = 440
     if sample:
         n = np.linspace(0, batchsize * framelen - 1, batchsize * framelen)
@@ -268,7 +284,8 @@ def gen_data(sample=False):
     clean = _sin_f(amp,441,srate,n,phase) +  _sin_f(amp, 635.25,srate,n,phase) + _sin_f(amp,528,srate,n,phase) + _sin_f(amp,880,srate,n,phase)
 
     # corrupt with gaussian noise
-    noise = np.random.normal(0, 1e-1, clean.shape)
+    var = _noise_var(clean, SIMULATION_SNR)
+    noise = np.random.normal(0, var, clean.shape)
     noisy = clean + noise
 
     if sample:
@@ -372,8 +389,12 @@ def paris_main(params):
     for i in xrange(params.niter):
         clean, noisy, n, _ = gen_freq_data()
         loss = train_fn(noisy[0], clean[0])
+        LOSSFILE.write(LINEFMT.format(loss))
         lmse.append(loss)
         print i, loss
+
+        if i in range(0,params.niter+50,50):
+            # validate
     clean, noisy, n, _ = gen_freq_data(sample=True)
     cleaned_up = predict_fn(noisy[0])
     cleaned_up_time = normalize(ISTFT(cleaned_up, noisy[1], fftlen))
@@ -514,7 +535,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('net', type=str, help='super, paris, dan, or curro', default='super')
-    parser.add_argument('-n', '--niter', type=int, help='number of iterations', default=100)
+    parser.add_argument('-n', '--niter', type=int, help='number of iterations', default=2000)
     args = parser.parse_args()
     mapping = {
         'super': autoencoder,
@@ -523,3 +544,5 @@ if __name__ == "__main__":
         'curro': curro_main,
     }
     mapping[args.net](args)
+    LOSSFILE.close()
+    MSEFILE.close()
