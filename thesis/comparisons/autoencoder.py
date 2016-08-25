@@ -13,7 +13,7 @@ from scikits.audiolab import wavwrite
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
 
-SIMULATION_SNR = -3
+SIMULATION_SNR = -6
 FILE_SNR = '{} dB'.format(SIMULATION_SNR)
 FILENAME_LOSS = 'plotfinal/dan-loss.csv'
 FILENAME_MSE = 'plotfinal/dan-mse.csv'
