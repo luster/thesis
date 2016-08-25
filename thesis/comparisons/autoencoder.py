@@ -15,11 +15,12 @@ from sklearn.metrics import mean_squared_error
 
 SIMULATION_SNR = -3
 FILE_SNR = '{} dB'.format(SIMULATION_SNR)
-FILENAME_LOSS = 'plotfinal/paris-nobatchnorm-loss.csv'
-FILENAME_MSE = 'plotfinal/paris-nobatchnorm-mse.csv'
+FILENAME_LOSS = 'plotfinal/dan-loss.csv'
+FILENAME_MSE = 'plotfinal/dan-mse.csv'
 LOSSFILE = open(FILENAME_LOSS, 'a')
 MSEFILE = open(FILENAME_MSE, 'a')
 LINEFMT = FILE_SNR + ',{}\n'
+LINEFMTLOSS = FILE_SNR + ',{},{},{}\n'  # for dan net, we look at square loss & reg loss
 
 
 dtype = theano.config.floatX
@@ -70,8 +71,8 @@ def dan_net():
     # net
     x = T.matrix('X')  # input
     y = T.matrix('Y')  # soft label
-    #network = batch_norm(lasagne.layers.InputLayer(shape, x))
-    network = lasagne.layers.InputLayer(shape, x)
+    network = batch_norm(lasagne.layers.InputLayer(shape, x))
+    # network = lasagne.layers.InputLayer(shape, x)
     print network.output_shape
     network = lasagne.layers.DenseLayer(network, latentsize, nonlinearity=mod_relu)
     print network.output_shape
@@ -94,7 +95,7 @@ def dan_net():
 
     # training compilation
     params = lasagne.layers.get_all_params(network, trainable=True)
-    updates = lasagne.updates.adamax(loss, params)
+    updates = lasagne.updates.adam(loss, params)
     train_fn = theano.function([x,y], loss, updates=updates)
 
     # inference compilation
@@ -116,23 +117,38 @@ def dan_main(params):
     lmse = []
     lsq = []
     lreg = []
+    # inference example for simulations
+    clean, noisy, n, labels = gen_freq_data(sample=True, gen_data_fn=gen_batch_half_noisy_half_noise)
     for i in xrange(params.niter):
-        clean, noisy, n, labels = gen_freq_data(sample=False, gen_data_fn=gen_batch_half_noisy_half_noise)
+        _clean, _noisy, _n, _labels = gen_freq_data(sample=False, gen_data_fn=gen_batch_half_noisy_half_noise)
         # swap 0 and 1 since for dan net, 0 is signal and 1 is background
-        labels = np.expand_dims(np.abs(labels-1).astype(dtype)[:,1], axis=1)
+        _labels = np.expand_dims(np.abs(_labels-1).astype(dtype)[:,1], axis=1)
         # labels = np.abs(labels-1).astype(dtype)
 
-        loss = train_fn(noisy[0], labels)
+        loss = train_fn(_noisy[0], _labels)
         lmse.append(loss)
 
-        loss_lsq = square_loss(noisy[0])
+        loss_lsq = square_loss(_noisy[0])
         lsq.append(loss_lsq)
 
-        loss_reg = reg_loss(noisy[0], labels)
+        loss_reg = reg_loss(_noisy[0], _labels)
         lreg.append(loss_reg)
         print '%d\t%.3E\t%.3E\t%.3E' % (i, loss, loss_lsq, loss_reg)
 
-    clean, noisy, n, labels = gen_freq_data(sample=True, gen_data_fn=gen_batch_half_noisy_half_noise)
+        LOSSFILE.write(LINEFMTLOSS.format(loss, loss_lsq, loss_reg))
+
+        if i in range(0, params.niter+50, 50):
+            # validate mse
+            cleaned_up = predict_fn(noisy[0])
+            cleaned_up_time = normalize(ISTFT(cleaned_up, noisy[1], fftlen))
+            clean_time = normalize(ISTFT(clean[0], clean[1], fftlen))
+            noisy_time = normalize(ISTFT(noisy[0], noisy[1], fftlen))
+            baseline_mse = mean_squared_error(clean_time, noisy_time)
+            print 'baseline mse:', baseline_mse
+            mse = mean_squared_error(cleaned_up_time, clean_time)
+            print 'mse:', mse
+            MSEFILE.write(LINEFMT.format(mse))
+
     cleaned_up = predict_fn(noisy[0])
     print 'freq mse:', mean_squared_error(cleaned_up, clean[0])
     cleaned_up_time = normalize(ISTFT(cleaned_up, noisy[1], fftlen))
@@ -146,16 +162,6 @@ def dan_main(params):
     wavwrite(noisy_time, 'dan/y.wav', fs=srate, enc='pcm16')
     wavwrite(cleaned_up_time, 'dan/xhat.wav', fs=srate, enc='pcm16')
     wavwrite(cleaned_up_clean_phase, 'dan/xhat_cleanphase.wav', fs=srate, enc='pcm16')
-
-    # plt.figure()
-    # plt.semilogy(lmse)
-    # plt.savefig('dan/loss.pdf', format='pdf')
-    # plt.figure()
-    # plt.semilogy(lsq)
-    # plt.savefig('dan/lsq.pdf', format='pdf')
-    # plt.figure()
-    # plt.semilogy(lreg)
-    # plt.savefig('dan/lreg.pdf', format='pdf')
 
     plt.figure()
     plt.semilogy(lmse)
@@ -267,7 +273,7 @@ def gen_data(sample=False):
         avg_energy = np.sum(clean*clean)/clean.size
         snr_lin = 10**(snr_db/10)
         noise_var = avg_energy / snr_lin
-        # print 'noise variance for minibatch: ', noise_var
+        print '\tnoise variance for minibatch: ', noise_var
         return noise_var
 
     # f = 440
@@ -311,19 +317,42 @@ def gen_data(sample=False):
     return clean.astype(dtype), noisy.astype(dtype), n, None
 
 def gen_batch_half_noisy_half_noise(sample=False):
+    def _sin_f(a, f, srate, n, phase):
+        return a * np.sin(2*np.pi*f/srate*n+phase)
+
     nop = minibatch_noise_only_factor  # noise only percentage of minibatch
-    snr = 12  # dB
     f = 440
     if sample:
         n = np.linspace(0, batchsize * framelen - 1, batchsize * framelen)
-        phase = np.random.uniform(0.0, 2*np.pi)
-        amp = np.random.uniform(0.35, 0.6)
-        clean = amp * np.sin(2 * np.pi * f / srate * n + phase)
+        np.random.seed(3)  # to get consistent samples
+        phase1 = np.random.uniform(0.0, 2*np.pi)
+        phase2 = np.random.uniform(0.0, 2*np.pi)
+        phase3 = np.random.uniform(0.0, 2*np.pi)
+        phase4 = np.random.uniform(0.0, 2*np.pi)
+        amp1 = np.random.uniform(0.25, 0.75)
+        amp2 = np.random.uniform(0.25, 0.75)
+        amp3 = np.random.uniform(0.25, 0.75)
+        amp4 = np.random.uniform(0.25, 0.75)
+        np.random.seed()
+        clean = _sin_f(amp1,441,srate,n,phase1) + \
+                _sin_f(amp2,549,srate,n,phase2) + \
+                _sin_f(amp3,660,srate,n,phase3) + \
+                _sin_f(amp4,881,srate,n,phase4)
     else:
         n = np.tile(np.linspace(0, framelen-1, framelen), (batchsize,1))
-        phase = np.tile(np.random.uniform(0.0, 2*np.pi, batchsize), (framelen, 1)).transpose()
-        amp = np.tile(np.random.uniform(0.35, 0.65, batchsize), (framelen,1)).transpose()
-        clean = amp * np.sin(2 * np.pi * f / srate * n + phase)
+        phase1 = np.tile(np.random.uniform(0.0, 2*np.pi, batchsize), (framelen, 1)).transpose()
+        phase2 = np.tile(np.random.uniform(0.0, 2*np.pi, batchsize), (framelen, 1)).transpose()
+        phase3 = np.tile(np.random.uniform(0.0, 2*np.pi, batchsize), (framelen, 1)).transpose()
+        phase4 = np.tile(np.random.uniform(0.0, 2*np.pi, batchsize), (framelen, 1)).transpose()
+        amp1 = np.tile(np.random.uniform(0.25, 0.75, batchsize), (framelen,1)).transpose()
+        amp2 = np.tile(np.random.uniform(0.25, 0.75, batchsize), (framelen,1)).transpose()
+        amp3 = np.tile(np.random.uniform(0.25, 0.75, batchsize), (framelen,1)).transpose()
+        amp4 = np.tile(np.random.uniform(0.25, 0.75, batchsize), (framelen,1)).transpose()
+        # clean = amp * np.sin(2 * np.pi * f / srate * n + phase)
+        clean = _sin_f(amp1,441,srate,n,phase1) + \
+                _sin_f(amp2,549,srate,n,phase2) + \
+                _sin_f(amp3,660,srate,n,phase3) + \
+                _sin_f(amp4,881,srate,n,phase4)
         clean[0:int(batchsize*nop),:] = 0
 
     def _noise_var(clean, snr_db):
@@ -331,14 +360,15 @@ def gen_batch_half_noisy_half_noise(sample=False):
         avg_energy = np.sum(clean*clean)/clean.size
         snr_lin = 10**(snr_db/10)
         noise_var = avg_energy / snr_lin
-        # print 'noise variance for minibatch: ', noise_var
+        print '\tnoise variance for minibatch: ', noise_var
         return noise_var
 
     # corrupt with gaussian noise
+    # use only the signal examples do determine noise variance (in both cases)
     if not sample:
-        noise_var = _noise_var(clean[int(batchsize*nop):,:], snr)
+        noise_var = _noise_var(clean[int(batchsize*nop):,:], SIMULATION_SNR)
     else:
-        noise_var = _noise_var(clean[int(batchsize*nop):], snr)
+        noise_var = _noise_var(clean[int(batchsize*nop):], SIMULATION_SNR)
     noise = np.random.normal(0, noise_var, clean.shape)
     noisy = clean + noise
 
@@ -513,7 +543,6 @@ def curro_main(params):
     plt.plot(lnoi)
     plt.legend(['sig', 'noi'])
     plt.savefig('curro/split.svg', format='svg')
-
 
 def sim_():
     # a, x, s, loss, reg, x_hat = autoencoder({})
