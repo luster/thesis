@@ -13,10 +13,10 @@ from scikits.audiolab import wavwrite
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
 
-SIMULATION_SNR = 6
+SIMULATION_SNR = -3
 FILE_SNR = '{} dB'.format(SIMULATION_SNR)
-FILENAME_LOSS = 'plotfinal/paris-loss.csv'
-FILENAME_MSE = 'plotfinal/paris-mse.csv'
+FILENAME_LOSS = 'plotfinal/paris-nobatchnorm-loss.csv'
+FILENAME_MSE = 'plotfinal/paris-nobatchnorm-mse.csv'
 LOSSFILE = open(FILENAME_LOSS, 'a')
 MSEFILE = open(FILENAME_MSE, 'a')
 LINEFMT = FILE_SNR + ',{}\n'
@@ -169,7 +169,8 @@ def paris_net(params):
     shape = (batchsize, fftlen)
     x = T.matrix('x')  # dirty
     s = T.matrix('s')  # clean
-    in_layer = batch_norm(lasagne.layers.InputLayer(shape, x))
+    #in_layer = batch_norm(lasagne.layers.InputLayer(shape, x))
+    in_layer = lasagne.layers.InputLayer(shape, x)
     h1 = batch_norm(lasagne.layers.DenseLayer(in_layer, 2000, nonlinearity=mod_relu))
     h1 = lasagne.layers.DenseLayer(h1, fftlen, nonlinearity=lasagne.nonlinearities.identity)
 
@@ -413,7 +414,7 @@ def paris_main(params):
 
         if i in range(0,params.niter+50,50):
             # validate mse
-            
+
             cleaned_up = predict_fn(noisy[0])
             cleaned_up_time = normalize(ISTFT(cleaned_up, noisy[1], fftlen))
             clean_time = normalize(ISTFT(clean[0], clean[1], fftlen))

@@ -1,0 +1,1 @@
+cd plotfinal/; python plot.py paris-mse.csv paris-mse; python plot.py paris-loss.csv paris-loss; cd ..

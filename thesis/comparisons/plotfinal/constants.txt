@@ -1,0 +1,22 @@
+batchsize 128 examples
+sample rate 16kHz
+frame length 1024 samples
+overlap 50%
+-6,3,0,3,6 dB runs
+eps 1e-5 for modified relu
+adamax with default lasagne params
+
+test signals
+    A major triad with octave - 441, 549, 660, 881 Hz (noise in freq/tuning)
+    uniform random amplitude between 0.25 and 0.75
+    uniform random phase between 0 and 2pi
+
+
+paris net with 2000 hidden nodes, 1 hidden layer, modified relu
+paris net but with batch normalization
+    baseline mse: 0.00634847075736
+    mse: 0.0170409406309baseline mse: 0.00634847075736
+    mse: 0.0170409406309
+
+another interesting observation is that convergence takes longer for signals with higher snr
+
