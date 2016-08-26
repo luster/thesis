@@ -13,10 +13,10 @@ from scikits.audiolab import wavwrite
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
 
-SIMULATION_SNR = 6
+SIMULATION_SNR = -6
 FILE_SNR = '{} dB'.format(SIMULATION_SNR)
-FILENAME_LOSS = 'plotfinal/dan-dense-loss.csv'
-FILENAME_MSE = 'plotfinal/dan-dense-mse.csv'
+FILENAME_LOSS = 'plotfinal/dan-loss.csv'
+FILENAME_MSE = 'plotfinal/dan-mse.csv'
 LOSSFILE = open(FILENAME_LOSS, 'a')
 MSEFILE = open(FILENAME_MSE, 'a')
 LINEFMT = FILE_SNR + ',{}\n'
@@ -36,7 +36,7 @@ framelen = fftlen
 shape = (batchsize,framelen)
 latentsize = 2000
 background_latents_factor = 0.25
-minibatch_noise_only_factor = 0.25
+minibatch_noise_only_factor = 0.5  # also for curro net
 n_noise_only_examples = int(minibatch_noise_only_factor * batchsize)
 n_background_latents = int(background_latents_factor * latentsize)
 lambduh = 0.75
@@ -137,7 +137,7 @@ def dan_main(params):
 
         LOSSFILE.write(LINEFMTLOSS.format(loss, loss_lsq, loss_reg))
 
-        if i in range(0, params.niter+51, 50):
+        if i in range(0, params.niter+50, 50):
             # validate mse
             cleaned_up = predict_fn(noisy[0])
             cleaned_up_time = normalize(ISTFT(cleaned_up, noisy[1], fftlen))
@@ -169,7 +169,6 @@ def dan_main(params):
     plt.semilogy(lreg)
     plt.legend(['overall loss', 'squared error loss', 'regularization loss'])
     plt.savefig('dan/losses.svg', format='svg')
-
 
 def paris_net(params):
     shape = (batchsize, fftlen)
@@ -490,19 +489,38 @@ def curro_main(params):
     predict_fn = theano.function([x], lasagne.layers.get_output(g_sig_for_real, deterministic=True))
     predict_fn_noi = theano.function([x], lasagne.layers.get_output(g_noi_for_real, deterministic=True))
     both = theano.function([x], lasagne.layers.get_output(g_sig, deterministic=True))
-    for i in xrange(params.niter):
-        clean, noisy, n, labels = gen_freq_data(sample=False, gen_data_fn=gen_batch_half_noisy_half_noise)
-        loss = train_fn(noisy[0], labels)
+
+    np.random.seed(3)
+    clean, noisy, n, labels = gen_freq_data(sample=True, gen_data_fn=gen_batch_half_noisy_half_noise)
+    np.random.seed()
+
+    for i in xrange(params.niter+1):
+        _clean, _noisy, _n, _labels = gen_freq_data(sample=False, gen_data_fn=gen_batch_half_noisy_half_noise)
+        loss = train_fn(_noisy[0], _labels)
         lmse.append(loss)
 
-        loss1 = train_sig(noisy[0])
+        loss1 = train_sig(_noisy[0])
         lsig.append(loss1)
 
-        loss2 = train_noi(noisy[0])
+        loss2 = train_noi(_noisy[0])
         lnoi.append(loss2)
 
         print i, loss, loss1, loss2
-    clean, noisy, n, labels = gen_freq_data(sample=True, gen_data_fn=gen_batch_half_noisy_half_noise)
+        LOSSFILE.WRITE(LINEFMTLOSS.format(loss,loss1,loss2))
+
+        if i in range(0,params.niter+50,50):
+            # validate mse
+
+            cleaned_up = predict_fn(noisy[0])
+            cleaned_up_time = normalize(ISTFT(cleaned_up, noisy[1], fftlen))
+            clean_time = normalize(ISTFT(clean[0], clean[1], fftlen))
+            noisy_time = normalize(ISTFT(noisy[0], noisy[1], fftlen))
+            baseline_mse = mean_squared_error(clean_time, noisy_time)
+            print 'baseline mse:', baseline_mse
+            mse = mean_squared_error(cleaned_up_time, clean_time)
+            print 'mse:', mse
+            MSEFILE.write(LINEFMT.format(mse))
+
 
     cleaned_up = predict_fn(noisy[0])
     noisy_reconstructed = predict_fn_noi(noisy[0])
