@@ -13,10 +13,10 @@ from scikits.audiolab import wavwrite
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
 
-SIMULATION_SNR = -6
+SIMULATION_SNR = 6
 FILE_SNR = '{} dB'.format(SIMULATION_SNR)
-FILENAME_LOSS = 'plotfinal/dan-loss.csv'
-FILENAME_MSE = 'plotfinal/dan-mse.csv'
+FILENAME_LOSS = 'plotfinal/dan-dense-loss.csv'
+FILENAME_MSE = 'plotfinal/dan-dense-mse.csv'
 LOSSFILE = open(FILENAME_LOSS, 'a')
 MSEFILE = open(FILENAME_MSE, 'a')
 LINEFMT = FILE_SNR + ',{}\n'
@@ -39,7 +39,7 @@ background_latents_factor = 0.25
 minibatch_noise_only_factor = 0.25
 n_noise_only_examples = int(minibatch_noise_only_factor * batchsize)
 n_background_latents = int(background_latents_factor * latentsize)
-lambduh = 0.75/50
+lambduh = 0.75
 
 batch_norm = lasagne.layers.batch_norm
 
@@ -119,7 +119,7 @@ def dan_main(params):
     lreg = []
     # inference example for simulations
     clean, noisy, n, labels = gen_freq_data(sample=True, gen_data_fn=gen_batch_half_noisy_half_noise)
-    for i in xrange(params.niter):
+    for i in xrange(params.niter+1):
         _clean, _noisy, _n, _labels = gen_freq_data(sample=False, gen_data_fn=gen_batch_half_noisy_half_noise)
         # swap 0 and 1 since for dan net, 0 is signal and 1 is background
         _labels = np.expand_dims(np.abs(_labels-1).astype(dtype)[:,1], axis=1)
@@ -137,7 +137,7 @@ def dan_main(params):
 
         LOSSFILE.write(LINEFMTLOSS.format(loss, loss_lsq, loss_reg))
 
-        if i in range(0, params.niter+50, 50):
+        if i in range(0, params.niter+51, 50):
             # validate mse
             cleaned_up = predict_fn(noisy[0])
             cleaned_up_time = normalize(ISTFT(cleaned_up, noisy[1], fftlen))
