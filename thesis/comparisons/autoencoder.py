@@ -13,10 +13,10 @@ from scikits.audiolab import wavwrite
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
 
-SIMULATION_SNR = -6
+SIMULATION_SNR = 6
 FILE_SNR = '{} dB'.format(SIMULATION_SNR)
-FILENAME_LOSS = 'plotfinal/dan-loss.csv'
-FILENAME_MSE = 'plotfinal/dan-mse.csv'
+FILENAME_LOSS = 'plotfinal/curro-loss.csv'
+FILENAME_MSE = 'plotfinal/curro-mse.csv'
 LOSSFILE = open(FILENAME_LOSS, 'a')
 MSEFILE = open(FILENAME_MSE, 'a')
 LINEFMT = FILE_SNR + ',{}\n'
@@ -506,7 +506,7 @@ def curro_main(params):
         lnoi.append(loss2)
 
         print i, loss, loss1, loss2
-        LOSSFILE.WRITE(LINEFMTLOSS.format(loss,loss1,loss2))
+        LOSSFILE.write(LINEFMTLOSS.format(loss,loss1,loss2))
 
         if i in range(0,params.niter+50,50):
             # validate mse
