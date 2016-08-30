@@ -35,7 +35,7 @@ def stft(x, framelength=framelength, overlap=framelength/2, freq_bins=freq_bins)
     framesz is the frame size, in seconds
     hop is the the time between the start of consecutive frames, in seconds
     """
-    w = scipy.hamming(framelength)
+    w = scipy.hanning(framelength)
     X = np.array([scipy.fft(w*x[i:i+framelength], freq_bins)
                      for i in range(0, len(x)-framelength, overlap)], dtype=complex64)
     X = np.transpose(X)
@@ -52,7 +52,7 @@ def istft(X, x_original, fs=44100):  #, fs, T, hop):
     audioframe_stride = int(framelength/2.)
     # T = len(x_original)
     x = scipy.zeros(framelength/2*(time_bins + 1))
-    w = scipy.hamming(framelength)
+    w = scipy.hanning(framelength)
     for n,i in enumerate(range(0, len(x)-framelength, overlap)):
         x[i:i+framelength] += scipy.real(scipy.ifft(X[:, n], framelength))
     return x
@@ -63,10 +63,10 @@ def standard_specgram(signal):#, audioframe_len, audioframe_stride, specbinlow, 
     return np.array(specgram(signal,
         NFFT=audioframe_len,
         noverlap=audioframe_len - audioframe_stride,
-        window=np.hamming(audioframe_len),
+        window=np.hanning(audioframe_len),
         mode='magnitude')[0][specbinlow:specbinlow + specbinnum, :], dtype=float32), np.array(
             specgram(signal, NFFT=audioframe_len, noverlap=audioframe_len - audioframe_stride,
-                window=np.hamming(audioframe_len), mode='phase')[0][specbinlow:specbinlow + specbinnum, :], dtype=float32)
+                window=np.hanning(audioframe_len), mode='phase')[0][specbinlow:specbinlow + specbinnum, :], dtype=float32)
 
 
 def load_soundfile(inwavpath, startpossecs, maxdursecs=None, wavdownsample=1, srate=44100):

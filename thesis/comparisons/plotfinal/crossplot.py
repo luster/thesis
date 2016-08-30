@@ -4,6 +4,13 @@ import csv
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 
+plt.rc('text', usetex=True)
+plt.rc('font', family='serif')
+plt.rc('font', size=10)
+params = {'legend.fontsize': 6,
+          }
+plt.rcParams.update(params)
+
 """
 we want a plot at
     specified snr
@@ -53,12 +60,13 @@ if __name__ == '__main__':
 
                 data[fname].append(float(row[1]))
 
-    plt.figure()
+    plt.figure(figsize=(4.5,3), dpi=300)
     plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
+    plt.ylabel(ylabel)#, rotation=0)
     plt.title(title)
     for key, datum in data.iteritems():
         plt.semilogy(xdata,datum)
     plt.legend(legends)
     outfname = 'pdf/comparison-{}-{}.pdf'.format(args.type,args.snr)
-    plt.savefig(outfname, format='pdf')
+    plt.tight_layout()
+    plt.savefig(outfname, format='pdf', bbox_inches='tight')

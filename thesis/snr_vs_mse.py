@@ -37,7 +37,7 @@ def normalize(this, against):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('-r', '--niter', type=int, default=1024)
+    parser.add_argument('-r', '--niter', type=int, default=2000)
     parser.add_argument('-e', '--epochs', type=int, default=16)
     parser.add_argument('-u', '--updates', type=str, default='adam')
     parser.add_argument('-m', '--minibatches', type=int, default=192)
