@@ -1,0 +1,2195 @@
+%!PS-Adobe-3.0
+%%Title: autoencoder.py
+%%For: ethan lusterman
+%%Creator: a2ps version 4.14
+%%CreationDate: Tue Sep 27 21:40:57 2016
+%%BoundingBox: 24 24 588 768
+%%DocumentData: Clean7Bit
+%%Orientation: Portrait
+%%Pages: 13
+%%PageOrder: Ascend
+%%DocumentMedia: Letter 612 792 0 () ()
+%%DocumentNeededResources: font Courier
+%%+ font Courier-Bold
+%%+ font Courier-BoldOblique
+%%+ font Courier-Oblique
+%%+ font Helvetica
+%%+ font Helvetica-Bold
+%%+ font Symbol
+%%+ font Times-Bold
+%%+ font Times-Roman
+%%DocumentProcessColors: Black 
+%%DocumentSuppliedResources: procset a2ps-a2ps-hdr
+%%+ procset a2ps-black+white-Prolog
+%%+ encoding ISO-8859-1Encoding
+%%EndComments
+/a2psdict 200 dict def
+a2psdict begin
+%%BeginProlog
+%%Copyright: (c) 1988, 89, 90, 91, 92, 93 Miguel Santana
+%%Copyright: (c) 1995, 96, 97, 98 Akim Demaille, Miguel Santana
+% Check PostScript language level.
+/languagelevel where {
+  pop /gs_languagelevel languagelevel def
+} {
+  /gs_languagelevel 1 def
+} ifelse
+
+% EPSF import as in the Red Book
+/BeginInclude {
+  /b4_Inc_state save def    		% Save state for cleanup
+  /dict_count countdictstack def	% Count objects on dict stack
+  /op_count count 1 sub def		% Count objects on operand stack 
+  userdict begin
+    0 setgray 0 setlinecap
+    1 setlinewidth 0 setlinejoin
+    10 setmiterlimit [ ] 0 setdash newpath
+    gs_languagelevel 1 ne {
+      false setstrokeadjust false setoverprint 
+    } if
+} bind def
+
+/EndInclude {
+  count op_count sub { pos } repeat	% Clean up stacks
+  countdictstack dict_count sub { end } repeat
+  b4_Inc_state restore
+} bind def
+
+/BeginEPSF {
+  BeginInclude
+  /showpage { } def
+} bind def
+
+/EndEPSF {
+  EndInclude
+} bind def
+
+% Page prefeed
+/page_prefeed {         % bool -> -
+  statusdict /prefeed known {
+    statusdict exch /prefeed exch put
+  } {
+    pop
+  } ifelse
+} bind def
+
+/deffont {
+  findfont exch scalefont def
+} bind def
+
+/reencode_font {
+  findfont reencode 2 copy definefont pop def
+} bind def
+
+% Function c-show (str => -)
+% centers text only according to x axis.
+/c-show { 
+  dup stringwidth pop
+  2 div neg 0 rmoveto
+  show
+} bind def
+
+% Function l-show (str => -)
+% prints texts so that it ends at currentpoint
+/l-show {
+  dup stringwidth pop neg 
+  0 
+  rmoveto show
+} bind def
+
+% center-fit show (str w => -)
+% show centered, and scale currentfont so that the width is less than w
+/cfshow {
+  exch dup stringwidth pop
+  % If the title is too big, try to make it smaller
+  3 2 roll 2 copy
+  gt
+  { % if, i.e. too big
+    exch div
+    currentfont exch scalefont setfont
+  } { % ifelse
+    pop pop 
+  }
+  ifelse
+  c-show			% center title
+} bind def
+
+% Return the y size of the current font
+% - => fontsize
+/currentfontsize {
+  currentfont /FontType get 0 eq {
+    currentfont /FontMatrix get 3 get
+  }{
+    currentfont /FontMatrix get 3 get 1000 mul
+  } ifelse
+} bind def
+
+% reencode the font
+% <encoding-vector> <fontdict> -> <newfontdict>
+/reencode { %def
+  dup length 5 add dict begin
+    { %forall
+      % <vector> <key> <val>
+      1 index /FID ne 
+      { def }{ pop pop } ifelse
+    } forall
+    /Encoding exch def % -
+
+    % Use the font's bounding box to determine the ascent, descent,
+    % and overall height; don't forget that these values have to be
+    % transformed using the font's matrix.
+    % We use `load' because sometimes BBox is executable, sometimes not.
+    % Since we need 4 numbers an not an array avoid BBox from being executed
+    /FontBBox load aload pop
+    FontMatrix transform /Ascent exch def pop
+    FontMatrix transform /Descent exch def pop
+    /FontHeight Ascent Descent sub def
+
+    % Get the underline position and thickness if they're defined.
+    % Use 1 if they are not defined.
+    currentdict /FontInfo 2 copy known
+    { get
+      /UnderlinePosition 2 copy % <FontInfo> /UP <FontInfo> /UP
+      2 copy known
+      { get }{ pop pop 1 } ifelse
+      0 exch FontMatrix transform exch pop
+      def % <FontInfo>
+
+      /UnderlineThickness 2 copy % <FontInfo> /UT <FontInfo> /UT
+      2 copy known
+      { get }{ pop pop 1 } ifelse
+      0 exch FontMatrix transform exch pop
+      def % <FontInfo>
+      pop % -
+    }{ pop pop
+    } ifelse
+
+    currentdict
+  end 
+} bind def
+
+% composite fonts for ASCII-EUC mixed strings
+% Version 1.2 1/31/1990
+% Original Ken'ichi HANDA (handa@etl.go.jp)
+% Modified Norio Katayama (katayama@rd.nacsis.ac.jp),1998
+% Extend & Fix Koji Nakamaru (maru@on.cs.keio.ac.jp), 1999
+% Anyone can freely copy, modify, distribute this program.
+
+/copyfont {	% font-dic extra-entry-count  copyfont  font-dic
+	1 index maxlength add dict begin
+	{	1 index /FID ne 2 index /UniqueID ne and
+		{def} {pop pop} ifelse
+	} forall
+	currentdict
+	end
+} bind def
+
+/compositefont { % ASCIIFontName EUCFontName RomanScale RomanOffset Rot(T/F) compositefont font
+    /RomanRotation exch def
+    /RomanOffset exch def
+    /RomanScale exch def
+    userdict /fixeucfont_dict known not {
+	userdict begin
+	    /fixeucfont_dict 2 dict begin
+		/UpperByteEncoding [
+		    16#00 1 16#20 { pop 0 } for
+		    16#21 1 16#28 { 16#20 sub } for
+		    16#29 1 16#2F { pop 0 } for
+		    16#30 1 16#74 { 16#27 sub } for
+		    16#75 1 16#FF { pop 0 } for
+		] def
+	        /LowerByteEncoding [
+		    16#00 1 16#A0 { pop /.notdef } for
+		    16#A1 1 16#FE { 16#80 sub 16 2 string cvrs
+				    (cXX) dup 1 4 -1 roll
+				    putinterval cvn } for
+		    /.notdef
+		] def
+		currentdict
+	    end def
+	end
+    } if
+    findfont dup /FontType get 0 eq {
+	14 dict begin
+	    %
+	    % 7+8 bit EUC font
+	    %
+	    12 dict begin
+		/EUCFont exch def
+		/FontInfo (7+8 bit EUC font) readonly def
+		/PaintType 0 def
+		/FontType 0 def
+		/FontMatrix matrix def
+		% /FontName
+		/Encoding fixeucfont_dict /UpperByteEncoding get def
+		/FMapType 2 def
+		EUCFont /WMode known
+		{ EUCFont /WMode get /WMode exch def }
+		{ /WMode 0 def } ifelse
+		/FDepVector [
+		    EUCFont /FDepVector get 0 get
+		    [ 16#21 1 16#28 {} for 16#30 1 16#74 {} for ]
+		    {
+			13 dict begin
+			    /EUCFont EUCFont def
+			    /UpperByte exch 16#80 add def	
+			    % /FontName
+			    /FontInfo (EUC lower byte font) readonly def
+			    /PaintType 0 def
+			    /FontType 3 def
+			    /FontMatrix matrix def
+			    /FontBBox {0 0 0 0} def
+			    /Encoding
+				fixeucfont_dict /LowerByteEncoding get def
+			    % /UniqueID
+			    % /WMode
+			    /BuildChar {
+				gsave
+				exch dup /EUCFont get setfont
+				/UpperByte get
+				2 string
+				dup 0 4 -1 roll put
+				dup 1 4 -1 roll put
+				dup stringwidth setcharwidth
+				0 0 moveto show
+				grestore
+			    } bind def
+			    currentdict
+			end
+			/lowerbytefont exch definefont
+		    } forall
+		] def
+		currentdict
+	    end
+	    /eucfont exch definefont
+	    exch
+	    findfont 1 copyfont dup begin
+		RomanRotation {
+			/FontMatrix FontMatrix
+			[ 0 RomanScale neg RomanScale 0 RomanOffset neg 0 ]
+			matrix concatmatrix def
+		}{
+			/FontMatrix FontMatrix
+			[ RomanScale 0 0 RomanScale 0 RomanOffset ] matrix concatmatrix
+			def
+			/CDevProc
+			    {pop pop pop pop 0 exch -1000 exch 2 div 880} def
+		} ifelse
+	    end
+	    /asciifont exch definefont
+	    exch
+	    /FDepVector [ 4 2 roll ] def
+	    /FontType 0 def
+	    /WMode 0 def
+	    /FMapType 4 def
+	    /FontMatrix matrix def
+	    /Encoding [0 1] def
+	    /FontBBox {0 0 0 0} def
+%	    /FontHeight 1.0 def % XXXX
+	    /FontHeight RomanScale 1.0 ge { RomanScale }{ 1.0 } ifelse def
+	    /Descent -0.3 def   % XXXX
+	    currentdict
+	end
+	/tmpfont exch definefont
+	pop
+	/tmpfont findfont
+    }{
+	pop findfont 0 copyfont
+    } ifelse
+} def	
+
+/slantfont {	% FontName slant-degree  slantfont  font'
+    exch findfont 1 copyfont begin
+    [ 1 0 4 -1 roll 1 0 0 ] FontMatrix exch matrix concatmatrix
+    /FontMatrix exch def
+    currentdict
+    end
+} def
+
+% Function print line number (<string> # -)
+/# {
+  gsave
+    sx cw mul neg 2 div 0 rmoveto
+    f# setfont
+    c-show
+  grestore
+} bind def
+
+% -------- Some routines to enlight plain b/w printings ---------
+
+% Underline
+% width --
+/dounderline {
+  currentpoint
+  gsave
+    moveto
+    0 currentfont /Descent get currentfontsize mul rmoveto
+    0 rlineto
+    stroke
+  grestore
+} bind def
+
+% Underline a string
+% string --
+/dounderlinestring {
+  stringwidth pop
+  dounderline
+} bind def
+
+/UL {
+  /ul exch store
+} bind def
+
+% Draw a box of WIDTH wrt current font
+% width --
+/dobox {
+  currentpoint
+  gsave
+    newpath
+    moveto
+    0 currentfont /Descent get currentfontsize mul rmoveto
+    dup 0 rlineto
+    0 currentfont /FontHeight get currentfontsize mul rlineto
+    neg 0 rlineto
+    closepath
+    stroke
+  grestore
+} bind def
+
+/BX {
+  /bx exch store
+} bind def
+
+% Box a string
+% string --
+/doboxstring {
+  stringwidth pop
+  dobox
+} bind def
+
+%
+% ------------- Color routines ---------------
+%
+/FG /setrgbcolor load def
+
+% Draw the background
+% width --
+/dobackground {
+  currentpoint
+  gsave
+    newpath
+    moveto
+    0 currentfont /Descent get currentfontsize mul rmoveto
+    dup 0 rlineto
+    0 currentfont /FontHeight get currentfontsize mul rlineto
+    neg 0 rlineto
+    closepath
+    bgcolor aload pop setrgbcolor
+    fill
+  grestore
+} bind def
+
+% Draw bg for a string
+% string --
+/dobackgroundstring {
+  stringwidth pop
+  dobackground
+} bind def
+
+
+/BG {
+  dup /bg exch store
+  { mark 4 1 roll ] /bgcolor exch store } if
+} bind def
+
+
+/Show {
+  bg { dup dobackgroundstring } if
+  ul { dup dounderlinestring } if
+  bx { dup doboxstring } if
+  show
+} bind def
+
+% Function T(ab), jumps to the n-th tabulation in the current line
+/T {
+  cw mul x0 add
+  bg { dup currentpoint pop sub dobackground } if
+  ul { dup currentpoint pop sub dounderline } if
+  bx { dup currentpoint pop sub dobox } if
+  y0 moveto
+} bind def
+
+% Function n: move to the next line
+/n {
+  /y0 y0 bfs sub store
+  x0 y0 moveto
+} bind def
+
+% Function N: show and move to the next line
+/N {
+  Show
+  /y0 y0 bfs sub store
+  x0 y0 moveto
+} bind def
+
+/S {
+  Show
+} bind def
+
+%%BeginResource: procset a2ps-a2ps-hdr 2.0 2
+%%Copyright: (c) 1988, 89, 90, 91, 92, 93 Miguel Santana
+%%Copyright: (c) 1995, 96, 97, 98 Akim Demaille, Miguel Santana
+% Function title: prints page header.
+% <ct> <rt> <lt> are passed as argument
+/title { 
+  % 1. Draw the background
+  x v get y v get moveto
+  gsave
+    0 th 2 div neg rmoveto 
+    th setlinewidth
+    0.95 setgray
+    pw 0 rlineto stroke
+  grestore
+  % 2. Border it
+  gsave
+    0.7 setlinewidth
+    pw 0 rlineto
+    0 th neg rlineto
+    pw neg 0 rlineto
+    closepath stroke
+  grestore
+  % stk: ct rt lt
+  x v get y v get th sub 1 add moveto
+%%IncludeResource: font Helvetica
+  fHelvetica fnfs 0.8 mul scalefont setfont
+  % 3. The left title
+  gsave
+    dup stringwidth pop fnfs 0.8 mul add exch % leave space took on stack
+    fnfs 0.8 mul hm rmoveto
+    show			% left title
+  grestore
+  exch
+  % stk: ct ltw rt
+  % 4. the right title
+  gsave
+    dup stringwidth pop fnfs 0.8 mul add exch % leave space took on stack
+    dup
+    pw exch stringwidth pop fnfs 0.8 mul add sub
+    hm
+    rmoveto
+    show			% right title
+  grestore
+  % stk: ct ltw rtw
+  % 5. the center title
+  gsave
+    pw 3 1 roll
+    % stk: ct pw ltw rtw
+    3 copy 
+    % Move to the center of the left room
+    sub add 2 div hm rmoveto
+    % What is the available space in here?
+    add sub fnfs 0.8 mul sub fnfs 0.8 mul sub
+    % stk: ct space_left
+%%IncludeResource: font Helvetica-Bold
+  fHelvetica-Bold fnfs scalefont setfont
+    cfshow
+  grestore
+} bind def
+
+% Function border: prints virtual page border
+/border { %def
+  gsave				% print four sides
+    0 setgray
+    x v get y v get moveto
+    0.7 setlinewidth		% of the square
+    pw 0 rlineto
+    0 ph neg rlineto
+    pw neg 0 rlineto
+    closepath stroke
+  grestore
+} bind def
+
+% Function water: prints a water mark in background
+/water { %def
+  gsave
+    scx scy moveto rotate
+%%IncludeResource: font Times-Bold
+  fTimes-Bold 100 scalefont setfont
+    .97 setgray
+    dup stringwidth pop 2 div neg -50 rmoveto
+    show
+  grestore
+} bind def
+
+% Function rhead: prints the right header
+/rhead {  %def
+  lx ly moveto
+  fHelvetica fnfs 0.8 mul scalefont setfont
+  l-show
+} bind def
+
+% Function footer (cf rf lf -> -)
+/footer {
+  fHelvetica fnfs 0.8 mul scalefont setfont
+  dx dy moveto
+  show
+
+  snx sny moveto
+  l-show
+  
+  fnx fny moveto
+  c-show
+} bind def
+%%EndResource
+%%BeginResource: procset a2ps-black+white-Prolog 2.0 1
+
+% Function T(ab), jumps to the n-th tabulation in the current line
+/T { 
+  cw mul x0 add y0 moveto
+} bind def
+
+% Function n: move to the next line
+/n { %def
+  /y0 y0 bfs sub store
+  x0 y0 moveto
+} bind def
+
+% Function N: show and move to the next line
+/N {
+  Show
+  /y0 y0 bfs sub store
+  x0 y0 moveto
+}  bind def
+
+/S {
+  Show
+} bind def
+
+/p {
+  false UL
+  false BX
+  fCourier bfs scalefont setfont
+  Show
+} bind def
+
+/sy {
+  false UL
+  false BX
+  fSymbol bfs scalefont setfont
+  Show
+} bind def
+
+/k {
+  false UL
+  false BX
+  fCourier-Oblique bfs scalefont setfont
+  Show
+} bind def
+
+/K {
+  false UL
+  false BX
+  fCourier-Bold bfs scalefont setfont
+  Show
+} bind def
+
+/c {
+  false UL
+  false BX
+  fCourier-Oblique bfs scalefont setfont
+  Show
+} bind def
+
+/C {
+  false UL
+  false BX
+  fCourier-BoldOblique bfs scalefont setfont
+  Show 
+} bind def
+
+/l {
+  false UL
+  false BX
+  fHelvetica bfs scalefont setfont
+  Show
+} bind def
+
+/L {
+  false UL
+  false BX
+  fHelvetica-Bold bfs scalefont setfont
+  Show 
+} bind def
+
+/str{
+  false UL
+  false BX
+  fTimes-Roman bfs scalefont setfont
+  Show
+} bind def
+
+/e{
+  false UL
+  true BX
+  fHelvetica-Bold bfs scalefont setfont
+  Show
+} bind def
+
+%%EndResource
+%%EndProlog
+%%BeginSetup
+%%IncludeResource: font Courier
+%%IncludeResource: font Courier-Oblique
+%%IncludeResource: font Courier-Bold
+%%IncludeResource: font Times-Roman
+%%IncludeResource: font Symbol
+%%IncludeResource: font Courier-BoldOblique
+%%BeginResource: encoding ISO-8859-1Encoding
+/ISO-8859-1Encoding [
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/space /exclam /quotedbl /numbersign /dollar /percent /ampersand /quoteright 
+/parenleft /parenright /asterisk /plus /comma /minus /period /slash 
+/zero /one /two /three /four /five /six /seven 
+/eight /nine /colon /semicolon /less /equal /greater /question 
+/at /A /B /C /D /E /F /G 
+/H /I /J /K /L /M /N /O 
+/P /Q /R /S /T /U /V /W 
+/X /Y /Z /bracketleft /backslash /bracketright /asciicircum /underscore 
+/quoteleft /a /b /c /d /e /f /g 
+/h /i /j /k /l /m /n /o 
+/p /q /r /s /t /u /v /w 
+/x /y /z /braceleft /bar /braceright /asciitilde /.notdef 
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef /.notdef 
+/space /exclamdown /cent /sterling /currency /yen /brokenbar /section 
+/dieresis /copyright /ordfeminine /guillemotleft /logicalnot /hyphen /registered /macron 
+/degree /plusminus /twosuperior /threesuperior /acute /mu /paragraph /bullet 
+/cedilla /onesuperior /ordmasculine /guillemotright /onequarter /onehalf /threequarters /questiondown 
+/Agrave /Aacute /Acircumflex /Atilde /Adieresis /Aring /AE /Ccedilla 
+/Egrave /Eacute /Ecircumflex /Edieresis /Igrave /Iacute /Icircumflex /Idieresis 
+/Eth /Ntilde /Ograve /Oacute /Ocircumflex /Otilde /Odieresis /multiply 
+/Oslash /Ugrave /Uacute /Ucircumflex /Udieresis /Yacute /Thorn /germandbls 
+/agrave /aacute /acircumflex /atilde /adieresis /aring /ae /ccedilla 
+/egrave /eacute /ecircumflex /edieresis /igrave /iacute /icircumflex /idieresis 
+/eth /ntilde /ograve /oacute /ocircumflex /otilde /odieresis /divide 
+/oslash /ugrave /uacute /ucircumflex /udieresis /yacute /thorn /ydieresis 
+] def
+%%EndResource
+% Initialize page description variables.
+/sh 792 def
+/sw 612 def
+/llx 24 def
+/urx 588 def
+/ury 768 def
+/lly 24 def
+/#copies 1 def
+/th 20.000000 def
+/fnfs 15 def
+/bfs 12.000000 def
+/cw 7.200000 def
+
+% Dictionary for ISO-8859-1 support
+/iso1dict 8 dict begin
+  /fCourier ISO-8859-1Encoding /Courier reencode_font
+  /fCourier-Bold ISO-8859-1Encoding /Courier-Bold reencode_font
+  /fCourier-BoldOblique ISO-8859-1Encoding /Courier-BoldOblique reencode_font
+  /fCourier-Oblique ISO-8859-1Encoding /Courier-Oblique reencode_font
+  /fHelvetica ISO-8859-1Encoding /Helvetica reencode_font
+  /fHelvetica-Bold ISO-8859-1Encoding /Helvetica-Bold reencode_font
+  /fTimes-Bold ISO-8859-1Encoding /Times-Bold reencode_font
+  /fTimes-Roman ISO-8859-1Encoding /Times-Roman reencode_font
+currentdict end def
+/bgcolor [ 0 0 0 ] def
+/bg false def
+/ul false def
+/bx false def
+% The font for line numbering
+/f# /Helvetica findfont bfs .6 mul scalefont def
+/fSymbol /Symbol findfont def
+/hm fnfs 0.25 mul def
+/pw
+   cw 77.400000 mul
+def
+/ph
+   704.400000 th add
+def
+/pmw 0 def
+/pmh 0 def
+/v 0 def
+/x [
+  0
+] def
+/y [
+  pmh ph add 0 mul ph add
+] def
+/scx sw 2 div def
+/scy sh 2 div def
+/snx urx def
+/sny lly 2 add def
+/dx llx def
+/dy sny def
+/fnx scx def
+/fny dy def
+/lx snx def
+/ly ury fnfs 0.8 mul sub def
+/sx 0 def
+/tab 8 def
+/x0 0 def
+/y0 0 def
+%%EndSetup
+
+%%Page: (1) 1
+%%BeginPageSetup
+/pagesave save def
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 5.040000 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(from) K
+( __future__ ) p
+(import) K
+( division) p n
+(# different networks \(autoencoder, conv autoencoder, recurrent\)) c n
+(# different signals \(sine, recording\)) N
+(# different noises \(awgn, crowd\)) N
+(# different domains \(time, freq\)) N
+(from) K
+( numpy ) p
+(import) K
+( complex64) p n
+(import) K
+( scipy) p n
+(import) K
+( lasagne) p n
+(import) K
+( theano) p n
+(import) K
+( theano.tensor as T) p n
+(import) K
+( numpy as np) p n
+(from) K
+( scikits.audiolab ) p
+(import) K
+( wavwrite) p n
+(import) K
+( matplotlib.pyplot as plt) p n
+(from) K
+( sklearn.metrics ) p
+(import) K
+( mean_squared_error) p n
+() N
+(SIMULATION_SNR = 6) N
+(FILE_SNR = ') S
+({} dB) str
+('.format\(SIMULATION_SNR\)) p n
+(FILENAME_LOSS = ') S
+(plotfinal/curro-loss.csv) str
+(') p n
+(FILENAME_MSE = ') S
+(plotfinal/curro-mse.csv) str
+(') p n
+(LOSSFILE = open\(FILENAME_LOSS, ') S
+(a) str
+('\)) p n
+(MSEFILE = open\(FILENAME_MSE, ') S
+(a) str
+('\)) p n
+(LINEFMT = FILE_SNR + ') S
+(,{}\\n) str
+(') p n
+(LINEFMTLOSS = FILE_SNR + ') S
+(,{},{},{}\\n) str
+('  ) p
+(# for dan net, we look at square loss &) c n
+( reg loss) N
+() p n
+(LATENTFILE = open\(') S
+(plotfinal/dan-latent.csv) str
+(', ') p
+(a) str
+('\)) p n
+() N
+() N
+(dtype = theano.config.floatX) N
+(batchsize = 128) N
+(# framelen = 441) c n
+(srate = 16000) p n
+(pct = 0.5  ) S
+(# overlap) c n
+(fftlen = 1024) p n
+(framelen = fftlen) N
+(# overlap = int\(framelen/2\)) c n
+() p n
+(# dan-specific) c n
+(shape = \(batchsize,framelen\)) p n
+(latentsize = 2000) N
+(#background_latents_factor = 0.25) c n
+(background_latents_factor = 0.5) p n
+(minibatch_noise_only_factor = 0.5  ) S
+(# also for curro net) c n
+(n_noise_only_examples = int\(minibatch_noise_only_factor * batchsize\)) p n
+(n_background_latents = int\(background_latents_factor * latentsize\)) N
+(lambduh = 0.75) N
+() N
+(batch_norm = lasagne.layers.batch_norm) N
+() N
+(def) K
+( mod_relu\(x\):) p n
+(    eps = 1e-5) N
+(    ) S
+(return) K
+( T.switch\(x > eps, x, -eps/\(x-1-eps\)\)) p n
+() N
+(def) K
+( normalize\(x\):) p n
+(    ) S
+(return) K
+( x / max\(abs\(x\)\)) p n
+() N
+(def) K
+( snr_after\(x, x_hat\):) p n
+(    ) S
+(return) K
+( np.var\(x\)/np.var\(x-x_hat\)) p n
+(autoencoder.py) (Page 1/13) () title
+border
+grestore
+() () () footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (2) 2
+%%BeginPageSetup
+/pagesave save def
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 5.040000 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+() p n
+() N
+(class) K
+( ZeroOutBackgroundLatentsLayer\(lasagne.layers.Layer\):) p n
+(    ) S
+(def) K
+( __init__\(self, incoming, **kwargs\):) p n
+(        super\(ZeroOutBackgroundLatentsLayer, self\).__init__\(incoming\)) N
+(        mask = np.ones\(\(batchsize,latentsize\)\)) N
+(        mask[:, 0:n_background_latents] = 0) N
+(        self.mask = theano.shared\(mask, borrow=True\)) N
+() N
+(    ) S
+(def) K
+( get_output_for\(self, input_data, reconstruct=False, **kwargs\):) p n
+(        ) S
+(if) K
+( reconstruct:) p n
+(            ) S
+(return) K
+( self.mask * input_data) p n
+(        ) S
+(return) K
+( input_data) p n
+() N
+() N
+(def) K
+( dan_net\(\):) p n
+(    ) S
+(# net) c n
+(    x = T.matrix\(') p
+(X) str
+('\)  ) p
+(# input) c n
+(    y = T.matrix\(') p
+(Y) str
+('\)  ) p
+(# soft label) c n
+(    network = batch_norm\(lasagne.layers.InputLayer\(shape, x\)\)) p n
+(    ) S
+(# network = lasagne.layers.InputLayer\(shape, x\)) c n
+(    ) p
+(print) K
+( network.output_shape) p n
+(    network = lasagne.layers.DenseLayer\(network, latentsize, nonlinearity=mo) N
+(d_relu\)) N
+(    ) S
+(print) K
+( network.output_shape) p n
+(    latents = network) N
+(    network = ZeroOutBackgroundLatentsLayer\(latents, background_latents_fact) N
+(or=background_latents_factor\)) N
+(    network = lasagne.layers.DenseLayer\(network, shape[1], nonlinearity=lasa) N
+(gne.nonlinearities.rectify\)) N
+(    ) S
+(print) K
+( network.output_shape) p n
+() N
+(    ) S
+(# loss) c n
+(    C = np.zeros\(\(batchsize,latentsize\)\)) p n
+(    C[0:n_noise_only_examples, n_background_latents + 1:] = 1) N
+(    C_mat = theano.shared\(np.asarray\(C, dtype=dtype\), borrow=True\)) N
+(    mean_C = theano.shared\(C.mean\(\), borrow=True\)) N
+(    prediction = lasagne.layers.get_output\(network\)) N
+(    mse_term = lasagne.objectives.squared_error\(prediction, x\).sum\(axis=[1],) N
+( keepdims=True\)) N
+(    scf = lambduh/mean_C) N
+(    regularization_term = scf * y * \(\(C_mat * lasagne.layers.get_output\(late) N
+(nts\)\)**2\).sum\(axis=[1], keepdims=True\)) N
+(    loss = mse_term + regularization_term) N
+(    loss = loss.mean\(\)) N
+() N
+(    ) S
+(# training compilation) c n
+(    params = lasagne.layers.get_all_params\(network, trainable=True\)) p n
+(    updates = lasagne.updates.adam\(loss, params\)) N
+(    train_fn = theano.function\([x,y], loss, updates=updates\)) N
+() N
+(    ) S
+(# inference compilation) c n
+(    predict_fn = theano.function\([x], lasagne.layers.get_output\(network, det) p n
+(erministic=True, reconstruct=True\)\)) N
+() N
+(    ) S
+(#) c n
+(    ) p
+(# other objectives) c n
+(    ) p
+(#) c n
+(autoencoder.py) (Page 2/13) () title
+border
+grestore
+() () () footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (3) 3
+%%BeginPageSetup
+/pagesave save def
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 5.040000 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(    square_term = theano.function\([x], mse_term.mean\(\)\)) p n
+(    regularization_term = theano.function\([x,y], regularization_term.mean\(\)\)) N
+() N
+(    ) S
+(def) K
+( do_stuff\(network, latents, predict_fn\):) p n
+(        ) S
+(pass) K n
+() p n
+(    latent_fn = theano.function\([x], lasagne.layers.get_output\(latents, dete) N
+(rministic=True\)\)) N
+(    ) S
+(return) K
+( network, latents, loss, square_term, regularization_term, train_f) p n
+(n, predict_fn, do_stuff, latent_fn) N
+() N
+(def) K
+( dan_main\(params\):) p n
+(    network, latents, loss, square_loss, reg_loss, train_fn, predict_fn, do_) N
+(stuff, latent_fn = dan_net\(\)) N
+(    lmse = []) N
+(    lsq = []) N
+(    lreg = []) N
+(    ) S
+(# inference example for simulations) c n
+(    clean, noisy, n, labels = gen_freq_data\(sample=True, gen_data_fn=gen_bat) p n
+(ch_half_noisy_half_noise\)) N
+() N
+(    ) S
+(for) K
+( i ) p
+(in) K
+( xrange\(params.niter+1\):) p n
+(        _clean, _noisy, _n, _labels = gen_freq_data\(sample=False, gen_data_f) N
+(n=gen_batch_half_noisy_half_noise\)) N
+(        ) S
+(# swap 0 and 1 since for dan net, 0 is signal and 1 is background) c n
+(        _labels = np.expand_dims\(np.abs\(_labels-1\).astype\(dtype\)[:,1], axis=) p n
+(1\)) N
+(        ) S
+(# labels = np.abs\(labels-1\).astype\(dtype\)) c n
+() p n
+(        loss = train_fn\(_noisy[0], _labels\)) N
+(        lmse.append\(loss\)) N
+() N
+(        loss_lsq = square_loss\(_noisy[0]\)) N
+(        lsq.append\(loss_lsq\)) N
+() N
+(        loss_reg = reg_loss\(_noisy[0], _labels\)) N
+(        lreg.append\(loss_reg\)) N
+(        ) S
+(print) K
+( ') p
+(%d\\t%.3E\\t%.3E\\t%.3E) str
+(' % \(i, loss, loss_lsq, loss_reg\)) p n
+() N
+(        LOSSFILE.write\(LINEFMTLOSS.format\(loss, loss_lsq, loss_reg\)\)) N
+() N
+(        ) S
+(if) K
+( i ) p
+(in) K
+( range\(0, params.niter+50, 50\):) p n
+(            ) S
+(# validate mse) c n
+(            cleaned_up = predict_fn\(noisy[0]\)) p n
+(            cleaned_up_time = normalize\(ISTFT\(cleaned_up, noisy[1], fftlen\)\)) N
+(            clean_time = normalize\(ISTFT\(clean[0], clean[1], fftlen\)\)) N
+(            noisy_time = normalize\(ISTFT\(noisy[0], noisy[1], fftlen\)\)) N
+(            baseline_mse = mean_squared_error\(clean_time, noisy_time\)) N
+(            ) S
+(print) K
+( ') p
+(baseline mse:) str
+(', baseline_mse) p n
+(            mse = mean_squared_error\(cleaned_up_time, clean_time\)) N
+(            ) S
+(print) K
+( ') p
+(mse:) str
+(', mse) p n
+(            MSEFILE.write\(LINEFMT.format\(mse\)\)) N
+() N
+(            latentz = latent_fn\(noisy[0]\)) N
+(            LATENTFILE.write\(') S
+({},{}) str
+('.format\(i, ') p
+(,) str
+('.join\([str\(x\) ) p
+(for) K
+( x ) p
+(in) K
+( late) p n
+(ntz]\)\)\)) N
+() N
+(    cleaned_up = predict_fn\(noisy[0]\)) N
+(autoencoder.py) (Page 3/13) () title
+border
+grestore
+() () () footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (4) 4
+%%BeginPageSetup
+/pagesave save def
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 5.040000 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(    ) p
+(print) K
+( ') p
+(freq mse:) str
+(', mean_squared_error\(cleaned_up, clean[0]\)) p n
+(    cleaned_up_time = normalize\(ISTFT\(cleaned_up, noisy[1], fftlen\)\)) N
+(    cleaned_up_clean_phase = normalize\(ISTFT\(cleaned_up, clean[1], fftlen\)\)) N
+(    clean_time = normalize\(ISTFT\(clean[0], clean[1], fftlen\)\)) N
+(    noisy_time = normalize\(ISTFT\(noisy[0], noisy[1], fftlen\)\)) N
+(    ) S
+(print) K
+( ') p
+(time mse noisy phase:) str
+(', mean_squared_error\(cleaned_up_time, clean_time\)) p n
+(    ) S
+(print) K
+( ') p
+(time mse clean phase:) str
+(', mean_squared_error\(cleaned_up_clean_phase, clea) p n
+(n_time\)) N
+(    ) S
+(print) K
+( ') p
+(baseline time mse noisy to clean:) str
+(', mean_squared_error\(noisy_time, clean_ti) p n
+(me\)) N
+(    wavwrite\(clean_time, ') S
+(dan/x.wav) str
+(', fs=srate, enc=') p
+(pcm16) str
+('\)) p n
+(    wavwrite\(noisy_time, ') S
+(dan/y.wav) str
+(', fs=srate, enc=') p
+(pcm16) str
+('\)) p n
+(    wavwrite\(cleaned_up_time, ') S
+(dan/xhat.wav) str
+(', fs=srate, enc=') p
+(pcm16) str
+('\)) p n
+(    wavwrite\(cleaned_up_clean_phase, ') S
+(dan/xhat_cleanphase.wav) str
+(', fs=srate, enc=') p
+(pcm) str n
+(16) S
+('\)) p n
+() N
+(    plt.figure\(\)) N
+(    plt.semilogy\(lmse\)) N
+(    plt.semilogy\(lsq\)) N
+(    plt.semilogy\(lreg\)) N
+(    plt.legend\([') S
+(overall loss) str
+(', ') p
+(squared error loss) str
+(', ') p
+(regularization loss) str
+(']\)) p n
+(    plt.savefig\(') S
+(dan/losses.svg) str
+(', format=') p
+(svg) str
+('\)) p n
+() N
+(def) K
+( paris_net\(params\):) p n
+(    shape = \(batchsize, fftlen\)) N
+(    x = T.matrix\(') S
+(x) str
+('\)  ) p
+(# dirty) c n
+(    s = T.matrix\(') p
+(s) str
+('\)  ) p
+(# clean) c n
+(    ) p
+(#in_layer = batch_norm\(lasagne.layers.InputLayer\(shape, x\)\)) c n
+(    in_layer = lasagne.layers.InputLayer\(shape, x\)) p n
+(    h1 = batch_norm\(lasagne.layers.DenseLayer\(in_layer, 2000, nonlinearity=m) N
+(od_relu\)\)) N
+(    h1 = lasagne.layers.DenseLayer\(h1, fftlen, nonlinearity=lasagne.nonlinea) N
+(rities.identity\)) N
+() N
+(    ) S
+(# loss function) c n
+(    prediction = lasagne.layers.get_output\(h1\)) p n
+(    loss = lasagne.objectives.squared_error\(prediction, s\)) N
+(    ) S
+(return) K
+( h1, x, s, loss.mean\(\), None, prediction) p n
+() N
+(def) K
+( curro_net\(params\):) p n
+(    ) S
+(# input) c n
+(    shape = \(batchsize, framelen\)) p n
+(    x = T.matrix\(') S
+(x) str
+('\)  ) p
+(# dirty input) c n
+(    label = T.matrix\(') p
+(label) str
+('\)  ) p
+(# noise OR signal/noise) c n
+() p n
+(    nonlin = mod_relu) N
+() N
+(    ) S
+(# network) c n
+(    ) p
+(# in_layer = batch_norm\(lasagne.layers.InputLayer\(shape, x\)\)  # batch no) c n
+(rm or no?) N
+(    in_layer = lasagne.layers.InputLayer\(shape, x\) ) p
+(# batch norm or no?) c n
+(    layersizes = 1024*2) p n
+(    h1 = lasagne.layers.DenseLayer\(in_layer, layersizes, nonlinearity=nonlin) N
+(\)) N
+(    h2 = lasagne.layers.DenseLayer\(h1, layersizes, nonlinearity=nonlin\)) N
+(    h3 = lasagne.layers.DenseLayer\(h2, layersizes, nonlinearity=nonlin\)) N
+(    f = h3  ) S
+(# at this point, first half is signal, second half is noise) c n
+() p n
+(autoencoder.py) (Page 4/13) () title
+border
+grestore
+() () () footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (5) 5
+%%BeginPageSetup
+/pagesave save def
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 5.040000 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(    ) p
+(# signal split) c n
+(    f_sig = lasagne.layers.SliceLayer\(f, indices=slice\(0,int\(layersizes/2\)\),) p n
+( axis=-1\)) N
+(    ) S
+(print) K
+( ') p
+(sig split size: ) str
+(', lasagne.layers.get_output_shape\(f_sig\)) p n
+(    sig_d3 = lasagne.layers.DenseLayer\(f_sig, framelen, nonlinearity=nonlin\)) N
+(    ) S
+(# save parameters for noise split) c n
+(    d3_W = sig_d3.W) p n
+(    d3_b = sig_d3.b) N
+(    sig_d2 = lasagne.layers.DenseLayer\(sig_d3, framelen, nonlinearity=nonlin) N
+(\)) N
+(    d2_W = sig_d2.W) N
+(    d2_b = sig_d2.b) N
+(    g_sig = lasagne.layers.DenseLayer\(sig_d2, framelen, nonlinearity=lasagne) N
+(.nonlinearities.identity\)) N
+(    gs_W = g_sig.W) N
+(    gs_b = g_sig.b) N
+() N
+(    f_noi = lasagne.layers.SliceLayer\(f, indices=slice\(int\(layersizes/2\),lay) N
+(ersizes\), axis=-1\)) N
+(    ) S
+(print) K
+( ') p
+(noisy split size: ) str
+(', lasagne.layers.get_output_shape\(f_noi\)) p n
+(    noi_d3 = lasagne.layers.DenseLayer\(f_noi, framelen, W=d3_W, b=d3_b, nonl) N
+(inearity=nonlin\)) N
+(    noi_d2 = lasagne.layers.DenseLayer\(noi_d3, framelen, W=d2_W, b=d2_b, non) N
+(linearity=nonlin\)) N
+(    g_noi = lasagne.layers.DenseLayer\(noi_d2, framelen, W=gs_W, b=gs_b, nonl) N
+(inearity=lasagne.nonlinearities.identity\)) N
+() N
+(    out_layer = lasagne.layers.ElemwiseSumLayer\([g_sig,g_noi]\)) N
+() N
+(    prediction_sig = lasagne.layers.get_output\(g_sig\)) N
+(    prediction_noi = lasagne.layers.get_output\(g_noi\)) N
+(    ) S
+(# label is 1 for signal, 0 for noise) c n
+(    prediction = label * prediction_sig + prediction_noi) p n
+(    loss = lasagne.objectives.squared_error\(prediction, x\)) N
+(    loss_sig = lasagne.objectives.squared_error\(prediction_sig, x\)) N
+(    loss_noi = lasagne.objectives.squared_error\(prediction_noi, x\)) N
+() N
+(    ) S
+(return) K
+( out_layer, g_sig, x, label, loss.mean\(\), g_noi, prediction, loss_) p n
+(sig, loss_noi) N
+() N
+(def) K
+( autoencoder\(params\):) p n
+(    ) S
+(# network) c n
+(    shape = \(batchsize, framelen\)) p n
+(    x = T.matrix\(') S
+(x) str
+('\)  ) p
+(# dirty) c n
+(    s = T.matrix\(') p
+(s) str
+('\)  ) p
+(# clean) c n
+(    in_layer = batch_norm\(lasagne.layers.InputLayer\(shape, x\)\)) p n
+(    h1 = batch_norm\(lasagne.layers.DenseLayer\(in_layer, 400, nonlinearity=la) N
+(sagne.nonlinearities.leaky_rectify\)\)) N
+(    h2 = batch_norm\(lasagne.layers.DenseLayer\(h1, 330, nonlinearity=lasagne.) N
+(nonlinearities.leaky_rectify\)\)) N
+(    h3 = batch_norm\(lasagne.layers.DenseLayer\(h2, 300, nonlinearity=lasagne.) N
+(nonlinearities.leaky_rectify\)\)) N
+(    h4 = batch_norm\(lasagne.layers.DenseLayer\(h3, 270, nonlinearity=lasagne.) N
+(nonlinearities.leaky_rectify\)\)) N
+(    bottle = h4) N
+(    d4 = batch_norm\(lasagne.layers.DenseLayer\(h4, 300, nonlinearity=lasagne.) N
+(nonlinearities.leaky_rectify\)\)) N
+(    d3 = batch_norm\(lasagne.layers.DenseLayer\(d4, 330, nonlinearity=lasagne.) N
+(autoencoder.py) (Page 5/13) () title
+border
+grestore
+() () () footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (6) 6
+%%BeginPageSetup
+/pagesave save def
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 5.040000 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(nonlinearities.leaky_rectify\)\)) p n
+(    d2 = batch_norm\(lasagne.layers.DenseLayer\(d3, 400, nonlinearity=lasagne.) N
+(nonlinearities.leaky_rectify\)\)) N
+(    x_hat = batch_norm\(lasagne.layers.DenseLayer\(d2, framelen, nonlinearity=) N
+(lasagne.nonlinearities.identity\)\)) N
+() N
+(    ) S
+(# loss function) c n
+(    prediction = lasagne.layers.get_output\(x_hat\)) p n
+(    loss = lasagne.objectives.squared_error\(prediction, s\)) N
+(    reg = 2 * \(1e-5 * lasagne.regularization.regularize_network_params\(x_hat) N
+(, lasagne.regularization.l2\) + \\) N
+(          1e-6 * lasagne.regularization.regularize_network_params\(x_hat, las) N
+(agne.regularization.l1\)\)) N
+(    loss = loss + reg) N
+(    ) S
+(return) K
+( x_hat, x, s, loss.mean\(\), reg.mean\(\), prediction) p n
+() N
+(def) K
+( train\(autoencoder, x, s, loss\):) p n
+(    params = lasagne.layers.get_all_params\(autoencoder, trainable=True\)) N
+(    updates = lasagne.updates.adam\(loss, params\)) N
+(    train_fn = theano.function\([x,s], loss, updates=updates\)) N
+(    ) S
+(return) K
+( train_fn) p n
+() N
+(def) K
+( gen_data\(sample=False\):) p n
+(    ) S
+(def) K
+( _sin_f\(a, f, srate, n, phase\):) p n
+(        ) S
+(return) K
+( a * np.sin\(2*np.pi*f/srate*n+phase\)) p n
+() N
+(    ) S
+(def) K
+( _noise_var\(clean, snr_db\):) p n
+(        ) S
+(# we use one noise variance per minibatch) c n
+(        avg_energy = np.sum\(clean*clean\)/clean.size) p n
+(        snr_lin = 10**\(snr_db/10\)) N
+(        noise_var = avg_energy / snr_lin) N
+(        ) S
+(print) K
+( ') p
+(\\tnoise variance for minibatch: ) str
+(', noise_var) p n
+(        ) S
+(return) K
+( noise_var) p n
+() N
+(    ) S
+(# f = 440) c n
+(    ) p
+(if) K
+( sample:) p n
+(        n = np.linspace\(0, batchsize * framelen - 1, batchsize * framelen\)) N
+(        phase1 = np.random.uniform\(0.0, 2*np.pi\)) N
+(        phase2 = np.random.uniform\(0.0, 2*np.pi\)) N
+(        phase3 = np.random.uniform\(0.0, 2*np.pi\)) N
+(        phase4 = np.random.uniform\(0.0, 2*np.pi\)) N
+(        amp1 = np.random.uniform\(0.25, 0.75\)) N
+(        amp2 = np.random.uniform\(0.25, 0.75\)) N
+(        amp3 = np.random.uniform\(0.25, 0.75\)) N
+(        amp4 = np.random.uniform\(0.25, 0.75\)) N
+(    ) S
+(else) K
+(:) p n
+(        n = np.tile\(np.linspace\(0, framelen-1, framelen\), \(batchsize,1\)\)) N
+(        phase1 = np.tile\(np.random.uniform\(0.0, 2*np.pi, batchsize\), \(framel) N
+(en, 1\)\).transpose\(\)) N
+(        phase2 = np.tile\(np.random.uniform\(0.0, 2*np.pi, batchsize\), \(framel) N
+(en, 1\)\).transpose\(\)) N
+(        phase3 = np.tile\(np.random.uniform\(0.0, 2*np.pi, batchsize\), \(framel) N
+(en, 1\)\).transpose\(\)) N
+(        phase4 = np.tile\(np.random.uniform\(0.0, 2*np.pi, batchsize\), \(framel) N
+(en, 1\)\).transpose\(\)) N
+(        amp1 = np.tile\(np.random.uniform\(0.25, 0.75, batchsize\), \(framelen,1) N
+(\)\).transpose\(\)) N
+(        amp2 = np.tile\(np.random.uniform\(0.25, 0.75, batchsize\), \(framelen,1) N
+(autoencoder.py) (Page 6/13) () title
+border
+grestore
+() () () footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (7) 7
+%%BeginPageSetup
+/pagesave save def
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 5.040000 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(\)\).transpose\(\)) p n
+(        amp3 = np.tile\(np.random.uniform\(0.25, 0.75, batchsize\), \(framelen,1) N
+(\)\).transpose\(\)) N
+(        amp4 = np.tile\(np.random.uniform\(0.25, 0.75, batchsize\), \(framelen,1) N
+(\)\).transpose\(\)) N
+(    ) S
+(# clean = amp * np.sin\(2 * np.pi * f / srate * n + phase\)) c n
+(    clean = _sin_f\(amp1,441,srate,n,phase1\) + \\) p n
+(            _sin_f\(amp2,549,srate,n,phase2\) + \\) N
+(            _sin_f\(amp3,660,srate,n,phase3\) + \\) N
+(            _sin_f\(amp4,881,srate,n,phase4\)) N
+() N
+(    ) S
+(# corrupt with gaussian noise) c n
+(    var = _noise_var\(clean, SIMULATION_SNR\)) p n
+(    noise = np.random.normal\(0, var, clean.shape\)) N
+(    noisy = clean + noise) N
+() N
+(    ) S
+(if) K
+( sample:) p n
+(        noisy = np.array\([noisy[i:i+framelen] ) S
+(for) K
+( i ) p
+(in) K
+( xrange\(0, len\(noisy\),) p n
+( int\(pct*framelen\)\)][0:batchsize]\)) N
+(        clean = np.array\([clean[i:i+framelen] ) S
+(for) K
+( i ) p
+(in) K
+( xrange\(0, len\(clean\),) p n
+( int\(pct*framelen\)\)][0:batchsize]\)) N
+(        ) S
+(#noisy = noisy.reshape\(batchsize, framelen\)) c n
+(        ) p
+(#clean = clean.reshape\(batchsize, framelen\)) c n
+() p n
+(    ) S
+(return) K
+( clean.astype\(dtype\), noisy.astype\(dtype\), n, None) p n
+() N
+(def) K
+( gen_batch_half_noisy_half_noise\(sample=False\):) p n
+(    ) S
+(def) K
+( _sin_f\(a, f, srate, n, phase\):) p n
+(        ) S
+(return) K
+( a * np.sin\(2*np.pi*f/srate*n+phase\)) p n
+() N
+(    nop = minibatch_noise_only_factor  ) S
+(# noise only percentage of minibatch) c n
+(    f = 440) p n
+(    ) S
+(if) K
+( sample:) p n
+(        n = np.linspace\(0, batchsize * framelen - 1, batchsize * framelen\)) N
+(        np.random.seed\(3\)  ) S
+(# to get consistent samples) c n
+(        phase1 = np.random.uniform\(0.0, 2*np.pi\)) p n
+(        phase2 = np.random.uniform\(0.0, 2*np.pi\)) N
+(        phase3 = np.random.uniform\(0.0, 2*np.pi\)) N
+(        phase4 = np.random.uniform\(0.0, 2*np.pi\)) N
+(        amp1 = np.random.uniform\(0.25, 0.75\)) N
+(        amp2 = np.random.uniform\(0.25, 0.75\)) N
+(        amp3 = np.random.uniform\(0.25, 0.75\)) N
+(        amp4 = np.random.uniform\(0.25, 0.75\)) N
+(        np.random.seed\(\)) N
+(        clean = _sin_f\(amp1,441,srate,n,phase1\) + \\) N
+(                _sin_f\(amp2,549,srate,n,phase2\) + \\) N
+(                _sin_f\(amp3,660,srate,n,phase3\) + \\) N
+(                _sin_f\(amp4,881,srate,n,phase4\)) N
+(    ) S
+(else) K
+(:) p n
+(        n = np.tile\(np.linspace\(0, framelen-1, framelen\), \(batchsize,1\)\)) N
+(        phase1 = np.tile\(np.random.uniform\(0.0, 2*np.pi, batchsize\), \(framel) N
+(en, 1\)\).transpose\(\)) N
+(        phase2 = np.tile\(np.random.uniform\(0.0, 2*np.pi, batchsize\), \(framel) N
+(en, 1\)\).transpose\(\)) N
+(        phase3 = np.tile\(np.random.uniform\(0.0, 2*np.pi, batchsize\), \(framel) N
+(en, 1\)\).transpose\(\)) N
+(        phase4 = np.tile\(np.random.uniform\(0.0, 2*np.pi, batchsize\), \(framel) N
+(en, 1\)\).transpose\(\)) N
+(autoencoder.py) (Page 7/13) () title
+border
+grestore
+() () () footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (8) 8
+%%BeginPageSetup
+/pagesave save def
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 5.040000 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(        amp1 = np.tile\(np.random.uniform\(0.25, 0.75, batchsize\), \(framelen,1) p n
+(\)\).transpose\(\)) N
+(        amp2 = np.tile\(np.random.uniform\(0.25, 0.75, batchsize\), \(framelen,1) N
+(\)\).transpose\(\)) N
+(        amp3 = np.tile\(np.random.uniform\(0.25, 0.75, batchsize\), \(framelen,1) N
+(\)\).transpose\(\)) N
+(        amp4 = np.tile\(np.random.uniform\(0.25, 0.75, batchsize\), \(framelen,1) N
+(\)\).transpose\(\)) N
+(        ) S
+(# clean = amp * np.sin\(2 * np.pi * f / srate * n + phase\)) c n
+(        clean = _sin_f\(amp1,441,srate,n,phase1\) + \\) p n
+(                _sin_f\(amp2,549,srate,n,phase2\) + \\) N
+(                _sin_f\(amp3,660,srate,n,phase3\) + \\) N
+(                _sin_f\(amp4,881,srate,n,phase4\)) N
+(        clean[0:int\(batchsize*nop\),:] = 0) N
+() N
+(    ) S
+(def) K
+( _noise_var\(clean, snr_db\):) p n
+(        ) S
+(# we use one noise variance per minibatch) c n
+(        avg_energy = np.sum\(clean*clean\)/clean.size) p n
+(        snr_lin = 10**\(snr_db/10\)) N
+(        noise_var = avg_energy / snr_lin) N
+(        ) S
+(print) K
+( ') p
+(\\tnoise variance for minibatch: ) str
+(', noise_var) p n
+(        ) S
+(return) K
+( noise_var) p n
+() N
+(    ) S
+(# corrupt with gaussian noise) c n
+(    ) p
+(# use only the signal examples do determine noise variance \(in both case) c n
+(s\)) N
+(    ) p
+(if) K
+( ) p
+(not) K
+( sample:) p n
+(        noise_var = _noise_var\(clean[int\(batchsize*nop\):,:], SIMULATION_SNR\)) N
+(    ) S
+(else) K
+(:) p n
+(        noise_var = _noise_var\(clean[int\(batchsize*nop\):], SIMULATION_SNR\)) N
+(    noise = np.random.normal\(0, noise_var, clean.shape\)) N
+(    noisy = clean + noise) N
+() N
+(    ) S
+(if) K
+( sample:) p n
+(        noisy = np.array\([noisy[i:i+framelen] ) S
+(for) K
+( i ) p
+(in) K
+( xrange\(0, len\(noisy\),) p n
+( int\(pct*framelen\)\)][0:batchsize]\)) N
+(        clean = np.array\([clean[i:i+framelen] ) S
+(for) K
+( i ) p
+(in) K
+( xrange\(0, len\(clean\),) p n
+( int\(pct*framelen\)\)][0:batchsize]\)) N
+() N
+(    ) S
+(if) K
+( ) p
+(not) K
+( sample:) p n
+(        labels = np.ones\(\(batchsize,1\)\)) N
+(        labels[0:int\(batchsize*nop\)]=0) N
+(        ) S
+(# labels = np.zeros\(\(batchsize,1\)\)) c n
+(        ) p
+(# labels[0:int\(batchsize*nop\)]=1) c n
+(    ) p
+(else) K
+(:) p n
+(        ) S
+(# assuming "noisy" example for sample, not noise example) c n
+(        labels = np.ones\(\(batchsize,1\)\)) p n
+(        ) S
+(# labels = np.zeros\(\(batchsize,1\)\)) c n
+(    labels = np.tile\(labels, \(1,framelen\)\)) p n
+() N
+(    ) S
+(return) K
+( clean.astype\(dtype\), noisy.astype\(dtype\), n, labels.astype\(dtype\)) p n
+() N
+(def) K
+( stft\(x, framelen, overlap=int\(pct*framelen\)\):) p n
+(    w = scipy.hanning\(framelen\)) N
+(    X = np.array\([scipy.fft\(w*x[i:i+framelen], freq_bins\)) N
+(                     ) S
+(for) K
+( i ) p
+(in) K
+( range\(0, len\(x\)-framelen, overlap\)], dtype=com) p n
+(plex64\)) N
+(    X = np.transpose\(X\)) N
+(autoencoder.py) (Page 8/13) () title
+border
+grestore
+() () () footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (9) 9
+%%BeginPageSetup
+/pagesave save def
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 5.040000 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(    ) p
+(return) K
+( np.abs\(X\), np.angle\(X\)) p n
+() N
+(def) K
+( fft\(x, fftlen\):) p n
+(    w = np.tile\(\(scipy.hanning\(fftlen\)\), \(batchsize, 1\)\)) N
+(    X = scipy.fft\(w*x, fftlen, axis=-1\)) N
+(    ) S
+(return) K
+( np.abs\(X\).astype\(dtype\), np.angle\(X\).astype\(dtype\)) p n
+() N
+(def) K
+( gen_freq_data\(sample=False, gen_data_fn=gen_data\):) p n
+(    ) S
+(# for training, use FFTs of any frames) c n
+(    ) p
+(# for testing, use FFTs of frames with 25% overlap for proper reconstruc) c n
+(tion) N
+(    clean, noisy, n, labels = gen_data_fn\(sample\)) p n
+(    ) S
+(# get FFTs) c n
+(    clean_stft = fft\(clean, fftlen\)  ) p
+(# mag, phase) c n
+(    noisy_stft = fft\(noisy, fftlen\)  ) p
+(# mag, phase) c n
+(    ) p
+(return) K
+( clean_stft, noisy_stft, n, labels  ) p
+(# \(mag, phase\), \(mag, phase\)) c n
+() p n
+(def) K
+( istft\(X, framelen\):) p n
+(    frames_avg = int\(1/pct\)  ) S
+(# 4 in this case) c n
+(    ) p
+(# no avg first,) c n
+(    overlap = int\(pct * framelen\)) p n
+(    ) S
+(#x = scipy.zeros\(int\(framelen/2*\(time_bins + 1\)\)\)) c n
+(    x = scipy.zeros\(int\(X.shape[1]*\(X.shape[0]*pct+1-pct\)\)\)) p n
+(    ) S
+(for) K
+( n,i ) p
+(in) K
+( enumerate\(range\(0, len\(x\)-framelen, overlap\)\):) p n
+(        x[i:i+framelen] += scipy.real\(scipy.ifft\(X[n, :]\)\)) N
+(    ) S
+(return) K
+( x) p n
+() N
+(def) K
+( ISTFT\(mag, phase, framelen\):) p n
+(    stft = mag * np.exp\(1j*phase\)) N
+(    ) S
+(# return np.fft.ifft\(stft, framelen\)) c n
+(    ) p
+(return) K
+( istft\(stft, framelen\)) p n
+() N
+(def) K
+( paris_main\(params\):) p n
+(    a, x, s, loss, _, x_hat = paris_net\({}\)) N
+(    train_fn = train\(a,x,s,loss\)) N
+(    lmse = []) N
+(    predict_fn = theano.function\([x], x_hat\)) N
+() N
+(    np.random.seed\(3\)) N
+(    clean, noisy, n, _ = gen_freq_data\(sample=True\)) N
+(    np.random.seed\(\)) N
+() N
+(    ) S
+(for) K
+( i ) p
+(in) K
+( xrange\(params.niter+1\):) p n
+(        _clean, _noisy, _n, _ = gen_freq_data\(\)) N
+(        loss = train_fn\(_noisy[0], _clean[0]\)) N
+(        LOSSFILE.write\(LINEFMT.format\(loss\)\)) N
+(        lmse.append\(loss\)) N
+(        ) S
+(print) K
+( i, loss) p n
+() N
+(        ) S
+(if) K
+( i ) p
+(in) K
+( range\(0,params.niter+50,50\):) p n
+(            ) S
+(# validate mse) c n
+() p n
+(            cleaned_up = predict_fn\(noisy[0]\)) N
+(            cleaned_up_time = normalize\(ISTFT\(cleaned_up, noisy[1], fftlen\)\)) N
+(            clean_time = normalize\(ISTFT\(clean[0], clean[1], fftlen\)\)) N
+(            noisy_time = normalize\(ISTFT\(noisy[0], noisy[1], fftlen\)\)) N
+(            baseline_mse = mean_squared_error\(clean_time, noisy_time\)) N
+(            ) S
+(print) K
+( ') p
+(baseline mse:) str
+(', baseline_mse) p n
+(autoencoder.py) (Page 9/13) () title
+border
+grestore
+() () () footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (10) 10
+%%BeginPageSetup
+/pagesave save def
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 5.040000 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(            mse = mean_squared_error\(cleaned_up_time, clean_time\)) p n
+(            ) S
+(print) K
+( ') p
+(mse:) str
+(', mse) p n
+(            MSEFILE.write\(LINEFMT.format\(mse\)\)) N
+() N
+(    clean, noisy, n, _ = gen_freq_data\(sample=True\)) N
+(    cleaned_up = predict_fn\(noisy[0]\)) N
+(    cleaned_up_time = normalize\(ISTFT\(cleaned_up, noisy[1], fftlen\)\)) N
+(    clean_time = normalize\(ISTFT\(clean[0], clean[1], fftlen\)\)) N
+(    mse = mean_squared_error\(cleaned_up_time, clean_time\)) N
+(    ) S
+(# print 'mse ', mse) c n
+(    wavwrite\(normalize\(cleaned_up_time\), ') p
+(paris/xhat.wav) str
+(', fs=srate, enc=') p
+(pcm16) str
+(') p n
+(\)) N
+(    wavwrite\(normalize\(clean_time\), ') S
+(paris/x.wav) str
+(', fs=srate, enc=') p
+(pcm16) str
+('\)) p n
+(    noisy_time = normalize\(ISTFT\(noisy[0], noisy[1], fftlen\)\)) N
+(    wavwrite\(normalize\(noisy_time\), ') S
+(paris/n.wav) str
+(', fs=srate, enc=') p
+(pcm16) str
+('\)) p n
+(    plt.figure\(\)) N
+(    plt.subplot\(411\)) N
+(    ) S
+(#plt.plot\(cleaned_up_time[0:fftlen*2]\)) c n
+(    ) p
+(#plt.plot\(clean_time[0:fftlen*2]\)) c n
+(    plt.plot\(cleaned_up_time[1000:1250]\)) p n
+(    plt.plot\(clean_time[1000:1250]\)) N
+(    plt.subplot\(412\)) N
+(    plt.semilogy\(lmse\)) N
+(    plt.subplot\(413\)) N
+(    plt.plot\(clean[0][0,:]\)) N
+(    plt.subplot\(414\)) N
+(    plt.plot\(np.unwrap\(clean[1][0,:]\)\)) N
+(    plt.savefig\(') S
+(paris/x.svg) str
+(', format=') p
+(svg) str
+('\)) p n
+() N
+(def) K
+( curro_main\(params\):) p n
+(    g_sig, g_sig_for_real, x, s, loss, g_noi_for_real, x_hat, loss_sig, loss) N
+(_noi = curro_net\({}\)) N
+(    train_fn = train\(g_sig,x,s,loss\)) N
+(    train_sig = theano.function\([x], loss_sig.mean\(\)\)) N
+(    train_noi = theano.function\([x], loss_noi.mean\(\)\)) N
+(    lmse = []) N
+(    lsig = []) N
+(    lnoi = []) N
+(    predict_fn = theano.function\([x], lasagne.layers.get_output\(g_sig_for_re) N
+(al, deterministic=True\)\)) N
+(    predict_fn_noi = theano.function\([x], lasagne.layers.get_output\(g_noi_fo) N
+(r_real, deterministic=True\)\)) N
+(    both = theano.function\([x], lasagne.layers.get_output\(g_sig, determinist) N
+(ic=True\)\)) N
+() N
+(    np.random.seed\(3\)) N
+(    clean, noisy, n, labels = gen_freq_data\(sample=True, gen_data_fn=gen_bat) N
+(ch_half_noisy_half_noise\)) N
+(    np.random.seed\(\)) N
+() N
+(    ) S
+(for) K
+( i ) p
+(in) K
+( xrange\(params.niter+1\):) p n
+(        _clean, _noisy, _n, _labels = gen_freq_data\(sample=False, gen_data_f) N
+(n=gen_batch_half_noisy_half_noise\)) N
+(        loss = train_fn\(_noisy[0], _labels\)) N
+(        lmse.append\(loss\)) N
+() N
+(        loss1 = train_sig\(_noisy[0]\)) N
+(        lsig.append\(loss1\)) N
+(autoencoder.py) (Page 10/13) () title
+border
+grestore
+() () () footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (11) 11
+%%BeginPageSetup
+/pagesave save def
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 5.040000 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+() p n
+(        loss2 = train_noi\(_noisy[0]\)) N
+(        lnoi.append\(loss2\)) N
+() N
+(        ) S
+(print) K
+( i, loss, loss1, loss2) p n
+(        LOSSFILE.write\(LINEFMTLOSS.format\(loss,loss1,loss2\)\)) N
+() N
+(        ) S
+(if) K
+( i ) p
+(in) K
+( range\(0,params.niter+50,50\):) p n
+(            ) S
+(# validate mse) c n
+() p n
+(            cleaned_up = predict_fn\(noisy[0]\)) N
+(            cleaned_up_time = normalize\(ISTFT\(cleaned_up, noisy[1], fftlen\)\)) N
+(            clean_time = normalize\(ISTFT\(clean[0], clean[1], fftlen\)\)) N
+(            noisy_time = normalize\(ISTFT\(noisy[0], noisy[1], fftlen\)\)) N
+(            baseline_mse = mean_squared_error\(clean_time, noisy_time\)) N
+(            ) S
+(print) K
+( ') p
+(baseline mse:) str
+(', baseline_mse) p n
+(            mse = mean_squared_error\(cleaned_up_time, clean_time\)) N
+(            ) S
+(print) K
+( ') p
+(mse:) str
+(', mse) p n
+(            MSEFILE.write\(LINEFMT.format\(mse\)\)) N
+() N
+() N
+(    cleaned_up = predict_fn\(noisy[0]\)) N
+(    noisy_reconstructed = predict_fn_noi\(noisy[0]\)) N
+(    both_ffts = both\(noisy[0]\)) N
+() N
+(    cleaned_up_time = normalize\(ISTFT\(cleaned_up, noisy[1], fftlen\)\)) N
+(    clean_time = normalize\(ISTFT\(clean[0], clean[1], fftlen\)\)) N
+(    noisy_reconstructed = normalize\(ISTFT\(noisy_reconstructed, noisy[1], fft) N
+(len\)\)) N
+(    both_time = normalize\(ISTFT\(both_ffts, noisy[1], fftlen\)\)) N
+() N
+(    mse = mean_squared_error\(cleaned_up_time, clean_time\)) N
+(    mse_noi = mean_squared_error\(noisy_reconstructed, clean_time\)) N
+(    mse_both = mean_squared_error\(both_time, clean_time\)) N
+(    ) S
+(#print 'baseline mse', mean_squared_error\(\)  TODO: mse) c n
+(    ) p
+(print) K
+( ') p
+(mse ) str
+(', mse) p n
+(    ) S
+(print) K
+( ') p
+(mse of noisy half ) str
+(', mse_noi) p n
+(    ) S
+(print) K
+( ') p
+(mse of combined \(both\) ) str
+(', mse_both) p n
+(    wavwrite\(normalize\(cleaned_up_time\), ') S
+(curro/xhat.wav) str
+(', fs=srate, enc=') p
+(pcm16) str
+(') p n
+(\)) N
+(    wavwrite\(normalize\(clean_time\), ') S
+(curro/x.wav) str
+(', fs=srate, enc=') p
+(pcm16) str
+('\)) p n
+(    wavwrite\(normalize\(noisy_reconstructed\), ') S
+(curro/nxhat.wav) str
+(', fs=srate, enc=') p
+(p) str n
+(cm16) S
+('\)) p n
+(    wavwrite\(normalize\(both_time\), ') S
+(curro/both.wav) str
+(', fs=srate, enc=') p
+(pcm16) str
+('\)) p n
+(    plt.figure\(\)) N
+(    plt.subplot\(511\)) N
+(    plt.plot\(clean_time[0:fftlen*3]\)) N
+(    plt.plot\(cleaned_up_time[0:fftlen*3]\)) N
+(    plt.subplot\(512\)) N
+(    plt.semilogy\(lmse\)) N
+(    plt.subplot\(513\)) N
+(    ) S
+(#plt.plot\(cleaned_up[0,:]\)) c n
+(    plt.semilogy\(np.abs\(np.fft.fft\(np.blackman\(cleaned_up_time.size\)*cleaned) p n
+(_up_time\)\)\)) N
+(    plt.subplot\(514\)) N
+(    plt.plot\(np.unwrap\(noisy[1][0,:]\)\)) N
+(    plt.subplot\(515\)) N
+(    plt.plot\(noisy_reconstructed[0:fftlen*3]\)) N
+(autoencoder.py) (Page 11/13) () title
+border
+grestore
+() () () footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (12) 12
+%%BeginPageSetup
+/pagesave save def
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 5.040000 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(    plt.savefig\(') p
+(curro/x.svg) str
+(', format=') p
+(svg) str
+('\)) p n
+(    plt.figure\(\)) N
+(    plt.plot\(lsig\)) N
+(    plt.plot\(lnoi\)) N
+(    plt.legend\([') S
+(sig) str
+(', ') p
+(noi) str
+(']\)) p n
+(    plt.savefig\(') S
+(curro/split.svg) str
+(', format=') p
+(svg) str
+('\)) p n
+() N
+(def) K
+( sim_\(\):) p n
+(    ) S
+(# a, x, s, loss, reg, x_hat = autoencoder\({}\)) c n
+(    a, x, s, loss, _, x_hat = curro_net\({}\)) p n
+(    train_fn = train\(a,x,s,loss\)) N
+(    loss_mse = theano.function\([x, s], loss\)) N
+(    ) S
+(# loss_reg = theano.function\([], reg\)) c n
+(    lmse = []) p n
+(    ) S
+(# lreg = []) c n
+(    predict_fn = theano.function\([x,s], x_hat\)) p n
+(    ) S
+(# clean, noisy = gen_data\(\)) c n
+(    ) p
+(# wavwrite\(clean[1,:], 'fig/s.wav', fs=srate, enc='pcm16'\)) c n
+(    ) p
+(for) K
+( i ) p
+(in) K
+( xrange\(niter\):) p n
+(        clean, noisy, _, labels = gen_freq_data\(sample=False, gen_data_fn=ge) N
+(n_batch_half_noisy_half_noise\)) N
+(        loss = train_fn\(noisy, labels\)) N
+(        lmse.append\(loss\)) N
+(        ) S
+(# lmse.append\(loss_mse\(noisy, clean\)\)) c n
+(        ) p
+(# lreg.append\(loss_reg\(\)\)) c n
+(        ) p
+(print) K
+( i, loss) p n
+(    clean, noisy, n, labels = gen_batch_half_noisy_half_noise\(sample=True\)) N
+(    cleaned_up = predict_fn\(noisy, labels\)) N
+(    cleaned_up = cleaned_up.reshape\(batchsize * framelen\)) N
+(    ) S
+(# mse calculation) c n
+(    mse = mean_squared_error\(cleaned_up, clean.reshape\(batchsize * framelen\)) p n
+(\)) N
+(    ) S
+(print) K
+( ') p
+(mse ) str
+(', mse) p n
+(    wavwrite\(clean.reshape\(batchsize * framelen\), ') S
+(fig/s.wav) str
+(', fs=srate, enc=') p
+(p) str n
+(cm16) S
+('\)) p n
+(    wavwrite\(noisy.reshape\(batchsize * framelen\), ') S
+(fig/xn.wav) str
+(', fs=srate, enc=) p n
+(') S
+(pcm16) str
+('\)) p n
+(    wavwrite\(cleaned_up, ') S
+(fig/x.wav) str
+(', fs=srate, enc=') p
+(pcm16) str
+('\)) p n
+(    plt.figure\(\)) N
+(    plt.subplot\(211\)) N
+(    ) S
+(# plt.plot\(n, clean.reshape\(batchsize * framelen\)\)) c n
+(    ) p
+(# plt.plot\(n, noisy.reshape\(batchsize * framelen\)\)) c n
+(    ) p
+(# plt.plot\(n, cleaned_up\)) c n
+(    plt.plot\(n[0:framelen*2],clean[0:2,:].reshape\(-1\)\)) p n
+(    plt.plot\(n[0:framelen*2],noisy[0:2,:].reshape\(-1\)\)) N
+(    plt.plot\(n[0:framelen*2],cleaned_up[0:framelen*2]\)) N
+(    ) S
+(# plt.plot\(n[0:framelen],cleaned_up[0:framelen]\)) c n
+(    plt.subplot\(212\)) p n
+(    plt.plot\(lmse\)) N
+(    plt.semilogy\(lmse\)) N
+(    ) S
+(# plt.subplot\(313\)) c n
+(    ) p
+(# plt.plot\(lreg\)) c n
+(    ) p
+(# plt.semilogy\(lreg\)) c n
+(    plt.savefig\(') p
+(fig/x.svg) str
+(', format=') p
+(svg) str
+('\)) p n
+() N
+() N
+(if) K
+( __name__ == ") p
+(__main__) str
+(":) p n
+(    ) S
+(import) K
+( sys) p n
+(autoencoder.py) (Page 12/13) () title
+border
+grestore
+() () () footer
+end % of iso1dict
+pagesave restore
+showpage
+%%Page: (13) 13
+%%BeginPageSetup
+/pagesave save def
+%%EndPageSetup
+iso1dict begin
+gsave
+llx lly 12 add translate
+/v 0 store
+/x0 x v get 5.040000 add sx cw mul add store
+/y0 y v get bfs th add sub store
+x0 y0 moveto
+(    ) p
+(import) K
+( argparse) p n
+(    parser = argparse.ArgumentParser\(\)) N
+(    parser.add_argument\(') S
+(net) str
+(', type=str, help=') p
+(super, paris, dan, or curro) str
+(', default=') p
+(s) str n
+(uper) S
+('\)) p n
+(    parser.add_argument\(') S
+(-n) str
+(', ') p
+(--niter) str
+(', type=int, help=') p
+(number of iterations) str
+(', defa) p n
+(ult=2000\)) N
+(    args = parser.parse_args\(\)) N
+(    mapping = {) N
+(        ') S
+(super) str
+(': autoencoder,) p n
+(        ') S
+(paris) str
+(': paris_main,) p n
+(        ') S
+(dan) str
+(': dan_main,) p n
+(        ') S
+(curro) str
+(': curro_main,) p n
+(    }) N
+(    mapping[args.net]\(args\)) N
+(    LOSSFILE.close\(\)) N
+(    MSEFILE.close\(\)) N
+(    LATENTFILE.close\(\)) N
+(autoencoder.py) (Page 13/13) () title
+border
+grestore
+() () () footer
+end % of iso1dict
+pagesave restore
+showpage
+
+%%Trailer
+end
+%%EOF

@@ -41,6 +41,12 @@ if __name__ == '__main__':
     for fname in fnames:
         data[fname] = []
         legend = re.match(regex, fname).groups()[0]
+        legend = {
+            'dan-dense': 'Partitioned Autoencoder',
+            'paris': 'Autoencoder w/ BatchNorm',
+            'paris-nobatchnorm': 'Autoencoder w/o BatchNorm',
+            'curro': 'Curro Autoencoder',
+        }[legend]
         legends.append(legend)
 
         with open(fname, 'r') as f:

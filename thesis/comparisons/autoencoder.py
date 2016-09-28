@@ -22,6 +22,8 @@ MSEFILE = open(FILENAME_MSE, 'a')
 LINEFMT = FILE_SNR + ',{}\n'
 LINEFMTLOSS = FILE_SNR + ',{},{},{}\n'  # for dan net, we look at square loss & reg loss
 
+LATENTFILE = open('plotfinal/dan-latent.csv', 'a')
+
 
 dtype = theano.config.floatX
 batchsize = 128
@@ -35,7 +37,8 @@ framelen = fftlen
 # dan-specific
 shape = (batchsize,framelen)
 latentsize = 2000
-background_latents_factor = 0.25
+#background_latents_factor = 0.25
+background_latents_factor = 0.5
 minibatch_noise_only_factor = 0.5  # also for curro net
 n_noise_only_examples = int(minibatch_noise_only_factor * batchsize)
 n_background_latents = int(background_latents_factor * latentsize)
@@ -110,15 +113,17 @@ def dan_net():
     def do_stuff(network, latents, predict_fn):
         pass
 
-    return network, latents, loss, square_term, regularization_term, train_fn, predict_fn, do_stuff
+    latent_fn = theano.function([x], lasagne.layers.get_output(latents, deterministic=True))
+    return network, latents, loss, square_term, regularization_term, train_fn, predict_fn, do_stuff, latent_fn
 
 def dan_main(params):
-    network, latents, loss, square_loss, reg_loss, train_fn, predict_fn, do_stuff = dan_net()
+    network, latents, loss, square_loss, reg_loss, train_fn, predict_fn, do_stuff, latent_fn = dan_net()
     lmse = []
     lsq = []
     lreg = []
     # inference example for simulations
     clean, noisy, n, labels = gen_freq_data(sample=True, gen_data_fn=gen_batch_half_noisy_half_noise)
+
     for i in xrange(params.niter+1):
         _clean, _noisy, _n, _labels = gen_freq_data(sample=False, gen_data_fn=gen_batch_half_noisy_half_noise)
         # swap 0 and 1 since for dan net, 0 is signal and 1 is background
@@ -148,6 +153,9 @@ def dan_main(params):
             mse = mean_squared_error(cleaned_up_time, clean_time)
             print 'mse:', mse
             MSEFILE.write(LINEFMT.format(mse))
+
+            latentz = latent_fn(noisy[0])
+            LATENTFILE.write('{},{}'.format(i, ','.join([str(x) for x in latentz])))
 
     cleaned_up = predict_fn(noisy[0])
     print 'freq mse:', mean_squared_error(cleaned_up, clean[0])
@@ -623,3 +631,4 @@ if __name__ == "__main__":
     mapping[args.net](args)
     LOSSFILE.close()
     MSEFILE.close()
+    LATENTFILE.close()
